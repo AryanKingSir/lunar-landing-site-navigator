@@ -32,6 +32,7 @@ type State = {
 };
 
 let counter = 0;
+const latestRequest = new Map<string, number>();
 
 export const useStore = create<State>((set, get) => {
   const patch = (id: string, p: Partial<Scenario>) =>
@@ -64,7 +65,13 @@ export const useStore = create<State>((set, get) => {
     removeScenario: (id) =>
       set((st) => {
         const scenarios = st.scenarios.filter((x) => x.id !== id);
-        return { scenarios, activeId: st.activeId === id ? (scenarios[0]?.id ?? null) : st.activeId };
+        const offsetMs = Math.min(st.offsetMs, maxDurationMs({ scenarios }));
+        return {
+          scenarios,
+          activeId: st.activeId === id ? (scenarios[0]?.id ?? null) : st.activeId,
+          offsetMs,
+          ...(offsetMs !== st.offsetMs ? { playing: false } : {}),
+        };
       }),
 
     setActive: (id) => set({ activeId: id }),
@@ -81,6 +88,8 @@ export const useStore = create<State>((set, get) => {
     runScenario: async (id) => {
       const sc = get().scenarios.find((x) => x.id === id);
       if (!sc) return;
+      const token = (latestRequest.get(id) ?? 0) + 1;
+      latestRequest.set(id, token);
       patch(id, { loading: true, error: undefined });
       try {
         const result = await fetchScenario({
@@ -88,8 +97,10 @@ export const useStore = create<State>((set, get) => {
           step_min: sc.days > 30 ? 20 : 10, obs_h: 2, panel_mode: get().panelMode,
           panel_az: 0, area_m2: 1, efficiency: 0.3,
         });
+        if (latestRequest.get(id) !== token) return;
         patch(id, { result, loading: false });
       } catch (e) {
+        if (latestRequest.get(id) !== token) return;
         patch(id, { loading: false, error: (e as Error).message });
       }
     },
