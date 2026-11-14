@@ -17,9 +17,17 @@ export function indexAt(t: number[], time: number): number {
   return time - t[lo] <= t[hi] - time ? lo : hi;
 }
 
+export function rangeEndOf(t: number[]): number {
+  if (t.length === 0) return 0;
+  if (t.length === 1) return t[0];
+  return t[t.length - 1] + (t[1] - t[0]);
+}
+
 export function windowStatus(windows: Win[], time: number, rangeEnd: number) {
+  const atEnd = time >= rangeEnd;
   for (const [s, e] of windows) {
-    if (time >= s && time < e) return { inWindow: true, msUntilChange: e - time, openEnded: e >= rangeEnd };
+    const inside = time >= s && (time < e || (atEnd && e >= rangeEnd));
+    if (inside) return { inWindow: true, msUntilChange: Math.max(0, e - time), openEnded: e >= rangeEnd };
     if (s > time) return { inWindow: false, msUntilChange: s - time, openEnded: false };
   }
   return { inWindow: false, msUntilChange: null, openEnded: true };

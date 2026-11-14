@@ -30,3 +30,25 @@ describe('time utils', () => {
     expect(addDaysIso('2026-12-01T00:00:00Z', 1.5)).toBe('2026-12-02T12:00:00Z');
   });
 });
+
+import { rangeEndOf } from './time';
+
+describe('windowStatus at the end of the range', () => {
+  it('treats the range end as inside a window that runs to the end', () => {
+    expect(windowStatus([[0, 100]], 100, 100)).toEqual({ inWindow: true, msUntilChange: 0, openEnded: true });
+  });
+  it('still reports not-in-window when the last window ended earlier', () => {
+    expect(windowStatus([[0, 50]], 100, 100)).toEqual({ inWindow: false, msUntilChange: null, openEnded: true });
+  });
+  it('a window ending exactly at the last sample is not open-ended when rangeEnd is last + step', () => {
+    expect(windowStatus([[0, 90]], 50, 100).openEnded).toBe(false);
+  });
+});
+
+describe('rangeEndOf', () => {
+  it('is last sample plus one step', () => {
+    expect(rangeEndOf([0, 10, 20])).toBe(30);
+    expect(rangeEndOf([5])).toBe(5);
+    expect(rangeEndOf([])).toBe(0);
+  });
+});

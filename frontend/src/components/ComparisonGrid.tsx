@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { formatDuration, HOUR_MS, indexAt, windowStatus } from '../lib/time';
+import { formatDuration, HOUR_MS, indexAt, rangeEndOf, windowStatus } from '../lib/time';
 import { useStore, type Scenario } from '../store';
 import type { Metrics, Win } from '../types';
 
@@ -31,7 +31,7 @@ function best(values: number[], better: Row['better']): number | null {
 
 function status(sc: Scenario, offsetMs: number, windows: Win[], up: string, down: string) {
   const t = sc.result!.samples.t;
-  const st = windowStatus(windows, t[0] + offsetMs, t[t.length - 1]);
+  const st = windowStatus(windows, t[0] + offsetMs, rangeEndOf(t));
   const when = `${st.openEnded && st.inWindow ? '≥ ' : ''}${formatDuration(st.msUntilChange)}`;
   return st.inWindow ? `${up} · ends in ${when}` : st.msUntilChange === null ? `${down} · none in period` : `${down} · starts in ${when}`;
 }
