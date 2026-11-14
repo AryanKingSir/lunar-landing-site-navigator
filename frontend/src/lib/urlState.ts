@@ -8,10 +8,16 @@ const VIEWS: View[] = ['sky', 'terrain', 'timeline', 'numbers'];
 const MAX_SCENARIOS = 4;
 const HOUR_MS = 3_600_000;
 
+const coord = (v: number) => String(Number(v.toFixed(4)));
+const startToken = (iso: string) => {
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? iso.replace(/:00Z$/, '') : new Date(ms).toISOString().slice(0, 16);
+};
+
 export function encodeState(s: SharedState): string {
   const items = s.scenarios.map((sc) => {
-    const who = sc.siteId ?? `c_${sc.lat}_${sc.lon}`;
-    return `${who}@${sc.start.replace(/:00Z$/, '')}~${sc.days}`;
+    const who = sc.siteId ?? `c_${coord(sc.lat)}_${coord(sc.lon)}`;
+    return `${who}@${startToken(sc.start)}~${sc.days}`;
   });
   const p = new URLSearchParams();
   p.set('s', items.join(';'));

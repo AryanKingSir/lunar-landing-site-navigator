@@ -27,4 +27,45 @@ describe('summarize', () => {
       { sun: [[13.65 * D, 28.53 * D]], earth: [[0, 30 * D]] }), 30);
     expect(s.sentence).toBe('Sunlit about half the time, with a longest night of 14 days. Earth is in view the whole time.');
   });
+  const H = 3_600_000;
+  const sent = (m: Parameters<typeof mk>[0], w: Parameters<typeof mk>[1] = {}) => summarize(mk(m, w), 30).sentence;
+  it('small sunlight share with a long night', () => {
+    expect(sent({ sun_time_pct: 5, longest_dark_h: 600 })).toMatch(/^Sunlit only a small part of the time, with a longest night of 25 days\./);
+  });
+  it('sunlight wording bands', () => {
+    expect(sent({ sun_time_pct: 30, longest_dark_h: 100 })).toContain('about a quarter');
+    expect(sent({ sun_time_pct: 75, longest_dark_h: 100 })).toContain('about three quarters');
+    expect(sent({ sun_time_pct: 95, longest_dark_h: 100 })).toMatch(/^Sunlit most of the time/);
+  });
+  it('durations are grammatical (halves round up: 60 h = 2.5 days -> 3 days)', () => {
+    expect(sent({ sun_time_pct: 50, longest_dark_h: 30 })).toContain('a longest night of 30 hours');
+    expect(sent({ sun_time_pct: 50, longest_dark_h: 1 })).toContain('a longest night of 1 hour.');
+    expect(sent({ sun_time_pct: 50, longest_dark_h: 0.3 })).toContain('a longest night of less than an hour');
+    expect(sent({ sun_time_pct: 50, longest_dark_h: 60 })).toContain('a longest night of 3 days');
+  });
+  it('Earth in view from the start', () => {
+    expect(sent({ earth_vis_pct: 33 }, { earth: [[0, 10 * D]] })).toContain('Earth is in view for the first 10 days.');
+  });
+  it('Earth rises later, singular day and hours', () => {
+    expect(sent({ earth_vis_pct: 4 }, { earth: [[5 * D, 6 * D]] })).toContain('Earth comes into view on day 5 and stays for 1 day.');
+    expect(sent({ earth_vis_pct: 1 }, { earth: [[5 * D, 5 * D + 6 * H]] })).toContain('on day 5 and stays for 6 hours.');
+  });
+  it('Earth with no windows uses the percentage', () => {
+    expect(sent({ earth_vis_pct: 40 }, { earth: [] })).toBe('No sunlight at all. Earth is in view about 40% of the time.');
+  });
+  it('mentions that Earth comes back', () => {
+    const s = sent({ earth_vis_pct: 50 }, { earth: [[0, 5 * D], [10 * D, 12 * D]] });
+    expect(s.endsWith('Earth is in view for the first 5 days. It comes back later.')).toBe(true);
+  });
+  it('never produces ungrammatical or broken text over a grid', () => {
+    const bad = /\b0 (days|hours)\b|\b1 (days|hours)\b|NaN|undefined/;
+    for (const sun of [0, 0.4, 5, 30, 50, 75, 95, 99.6, 100])
+      for (const dark of [0, 0.3, 1, 30, 47.6, 48, 600])
+        for (const len of [0.2, 1, 1.4, 10])
+          for (const start of [0, 3.5])
+            for (const earth of [0.4, 20, 100]) {
+              const s = sent({ sun_time_pct: sun, longest_dark_h: dark, earth_vis_pct: earth }, { earth: [[start * D, (start + len) * D]] });
+              expect(s).not.toMatch(bad);
+            }
+  });
 });

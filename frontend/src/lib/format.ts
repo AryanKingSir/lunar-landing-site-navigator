@@ -3,7 +3,8 @@ const HOUR_MS = 3_600_000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export function dayLabel(offsetMs: number): string {
+export function dayLabel(rawOffsetMs: number): string {
+  const offsetMs = Math.max(0, rawOffsetMs);
   const day = Math.floor(offsetMs / DAY_MS);
   const h = Math.floor((offsetMs - day * DAY_MS) / HOUR_MS);
   const m = Math.floor((offsetMs % HOUR_MS) / 60_000);
@@ -12,6 +13,7 @@ export function dayLabel(offsetMs: number): string {
 
 export function dateLabel(iso: string): string {
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
