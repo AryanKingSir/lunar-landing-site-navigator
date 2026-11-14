@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from app import terrain as T
 from app.config import DEM_RAW, DEM_RUNTIME
@@ -19,6 +20,7 @@ def test_runtime_dem_matches_raw_scale():
     dem = T.load_dem_npz(DEM_RUNTIME)
     assert dem.scale_m == 240.0 and dem.n == 2533
     assert abs(T.height_at(dem, -89.4667, -136.667) - 1947) < 500
+    assert dem.offset == pytest.approx((3799.5 - 1.0) / 3.0)
 
 
 @requires_dem_runtime

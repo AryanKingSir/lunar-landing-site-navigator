@@ -45,7 +45,8 @@ def build_curated_horizons(dem80: terrain.Dem) -> None:
 def _hillshade(h: np.ndarray, cell_m: float, az_deg: float = 315.0, alt_deg: float = 45.0) -> np.ndarray:
     gy, gx = np.gradient(h, cell_m)
     slope = np.pi / 2 - np.arctan(np.hypot(gx, gy))
-    aspect = np.arctan2(-gx, gy)
+    # Rows increase southward, so this is the ESRI convention with dz/drow.
+    aspect = np.arctan2(gy, -gx)
     az = np.radians(360.0 - az_deg + 90.0)
     alt = np.radians(alt_deg)
     shaded = np.sin(alt) * np.sin(slope) + np.cos(alt) * np.cos(slope) * np.cos(az - aspect)
