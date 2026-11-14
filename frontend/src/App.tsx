@@ -4,6 +4,8 @@ import { ComparisonGrid } from './components/ComparisonGrid';
 import { Header } from './components/Header';
 import { HorizonPanorama } from './components/HorizonPanorama';
 import { ScenarioList } from './components/ScenarioList';
+import { TimeScrubber } from './components/TimeScrubber';
+import { TimelineGantt } from './components/TimelineGantt';
 import { DEFAULT_START, useStore } from './store';
 
 export default function App() {
@@ -30,9 +32,9 @@ export default function App() {
       <main className="main">
         <ComparisonGrid />
         <div className="views"><HorizonPanorama /></div>
-        {/* Task 12: <TimelineGantt /> */}
+        <TimelineGantt />
       </main>
-      {/* Task 12: <TimeScrubber /> */}
+      <TimeScrubber />
     </div>
   );
 }
