@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { linear } from '../lib/scale';
 import { indexAt } from '../lib/time';
 import { activeScenario, useStore } from '../store';
@@ -20,21 +20,37 @@ export function HorizonPanorama() {
   const offsetMs = useStore((s) => s.offsetMs);
   const explain = useStore((s) => s.explain);
   const [zoom, setZoom] = useState<'auto' | 'horizon' | 'full'>('auto');
-  if (!sc?.result) return <section className="panel"><h2>Horizon panorama</h2><p className="muted">Select a computed scenario.</p></section>;
+  const clipId = useId();
+  const S = sc?.result?.samples;
+  const horizon = sc?.result?.horizon;
+  const lat = sc?.lat;
+
+  const geo = useMemo(() => {
+    if (!S || !horizon || lat === undefined) return null;
+    const polar = lat <= -75 || lat >= 75;
+    const [y0, y1] = zoom === 'full' || (zoom === 'auto' && !polar) ? [-5, 90] : [-3, 12];
+    const x = linear(0, 360, PL, W);
+    const y = linear(y0, y1, H - PB, 0);
+    const clampY = (v: number) => y(Math.max(y0, Math.min(y1, v)));
+    const sky = horizon.az.map((a, k) => `L${x(a).toFixed(1)},${clampY(horizon.el[k]).toFixed(1)}`).join(' ')
+      + ` L${x(360)},${clampY(horizon.el[0]).toFixed(1)}`;
+    const terrain = `M${x(0)},${H - PB} ${sky} L${x(360)},${H - PB} Z`;
+    const skyline = `M${x(0)},${clampY(horizon.el[0]).toFixed(1)} ${sky}`;
+    const step = y1 - y0 > 30 ? 15 : 2;
+    const grid: number[] = [];
+    for (let e = Math.ceil(y0 / step) * step; e <= y1; e += step) grid.push(e);
+    return {
+      x, y, terrain, skyline, grid,
+      sunPath: track(S.sun_az, S.sun_el, x, y),
+      earthPath: track(S.earth_az, S.earth_el, x, y),
+    };
+  }, [S, horizon, lat, zoom]);
+
+  if (!sc?.result || !geo || !S) return <section className="panel"><h2>Horizon panorama</h2><p className="muted">Select a computed scenario.</p></section>;
 
   const r = sc.result;
-  const S = r.samples;
   const i = indexAt(S.t, S.t[0] + offsetMs);
-  const polar = sc.lat <= -75 || sc.lat >= 75;
-  const [y0, y1] = zoom === 'full' || (zoom === 'auto' && !polar) ? [-5, 90] : [-3, 12];
-  const x = linear(0, 360, PL, W);
-  const y = linear(y0, y1, H - PB, 0);
-  const clampY = (v: number) => y(Math.max(y0, Math.min(y1, v)));
-  const terrain = `M${x(0)},${H - PB} ` + r.horizon.az.map((a, k) => `L${x(a).toFixed(1)},${clampY(r.horizon.el[k]).toFixed(1)}`).join(' ')
-    + ` L${x(360)},${clampY(r.horizon.el[0])} L${x(360)},${H - PB} Z`;
-  const step = y1 - y0 > 30 ? 15 : 2;
-  const grid = [];
-  for (let e = Math.ceil(y0 / step) * step; e <= y1; e += step) grid.push(e);
+  const { x, y, terrain, skyline, grid, sunPath, earthPath } = geo;
 
   return (
     <section className="panel">
@@ -47,18 +63,24 @@ export function HorizonPanorama() {
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="360 degree horizon with Sun and Earth tracks">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#05070b" /><stop offset="1" stopColor="#0c1420" /></linearGradient>
+          <clipPath id={clipId}><rect x={PL} y={0} width={W - PL} height={H - PB} /></clipPath>
         </defs>
         <rect x={PL} y={0} width={W - PL} height={H - PB} fill="url(#sky)" />
         {grid.map((e) => (
           <g key={e}><line x1={PL} x2={W} y1={y(e)} y2={y(e)} stroke={e === 0 ? '#3a4658' : '#141c27'} strokeDasharray={e === 0 ? '' : '2 4'} />
-            <text x={PL - 4} y={y(e) + 4} textAnchor="end">{e}°</text></g>
+            <text x={PL - 4} y={Math.max(10, y(e) + 4)} textAnchor="end">{e}°</text></g>
         ))}
-        <path d={track(S.sun_az, S.sun_el, x, clampY)} fill="none" stroke="var(--sun)" strokeOpacity={0.35} strokeWidth={1} />
-        <path d={track(S.earth_az, S.earth_el, x, clampY)} fill="none" stroke="var(--earth)" strokeOpacity={0.35} strokeWidth={1} />
-        <path d={terrain} fill="#1b1f25" stroke="#8a929e" strokeWidth={1} />
-        <circle cx={x(S.earth_az[i])} cy={clampY(S.earth_el[i])} r={7} fill="var(--earth)" stroke="#000" />
-        <circle cx={x(S.sun_az[i])} cy={clampY(S.sun_el[i])} r={6} fill="var(--sun)" stroke="#000" />
-        {DIRS.map((d, k) => <text key={k} x={x(k * 45)} y={H - 6} textAnchor="middle">{d}</text>)}
+        <g clipPath={`url(#${clipId})`}>
+          <path d={sunPath} fill="none" stroke="var(--sun)" strokeOpacity={0.35} strokeWidth={1} />
+          <path d={earthPath} fill="none" stroke="var(--earth)" strokeOpacity={0.35} strokeWidth={1} />
+        </g>
+        <path d={terrain} fill="#1b1f25" />
+        <path d={skyline} fill="none" stroke="#8a929e" strokeWidth={1} />
+        <g clipPath={`url(#${clipId})`}>
+          <circle cx={x(S.earth_az[i])} cy={y(S.earth_el[i])} r={7} fill="var(--earth)" stroke="#000" />
+          <circle cx={x(S.sun_az[i])} cy={y(S.sun_el[i])} r={6} fill="var(--sun)" stroke="#000" />
+        </g>
+        {DIRS.map((d, k) => <text key={k} x={x(k * 45)} y={H - 6} textAnchor={k === 8 ? 'end' : 'middle'}>{d}</text>)}
       </svg>
       <div className="mono muted" style={{ fontSize: 12 }}>
         <span style={{ color: 'var(--sun)' }}>Sun</span> az {S.sun_az[i].toFixed(1)}° el {S.sun_el[i].toFixed(2)}° · {(S.sun_frac[i] * 100).toFixed(0)}% of disk visible · {S.power_w[i].toFixed(0)} W
