@@ -130,3 +130,66 @@ describe('retryAll', () => {
     expect(bad.error).toBeUndefined();
   });
 });
+
+describe('start and seedDefaults', () => {
+  afterEach(() => vi.useRealTimers());
+  const sites = [{ id: 'connecting-ridge', name: 'Connecting Ridge', lat: -89.4, lon: 222 }, { id: 'apollo11', name: 'Apollo 11', lat: 0.67, lon: 23.47 }];
+  const ids = () => useStore.getState().scenarios.map((x) => x.siteId);
+
+  beforeEach(() => {
+    useStore.setState({ sites: [] });
+    mockFetch.mockResolvedValue(res('ok'));
+  });
+
+  it('start() seeds the two default scenarios when ping and sites succeed', async () => {
+    mockPing.mockResolvedValue(true);
+    mockSites.mockResolvedValue(sites as never);
+    await useStore.getState().start();
+    expect(ids()).toEqual(['connecting-ridge', 'apollo11']);
+  });
+
+  it('start() while the server wakes loads sites and seeds without retryAll', async () => {
+    vi.useFakeTimers();
+    mockPing.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    mockSites.mockResolvedValue(sites as never);
+    const p = useStore.getState().start();
+    await vi.advanceTimersByTimeAsync(5000);
+    await p;
+    expect(useStore.getState().server).toBe('ok');
+    expect(ids()).toEqual(['connecting-ridge', 'apollo11']);
+  });
+
+  it("goes 'down' with no scenarios after 90 s, then retryAll recovers fully", async () => {
+    vi.useFakeTimers();
+    mockPing.mockResolvedValue(false);
+    const p = useStore.getState().start();
+    await vi.advanceTimersByTimeAsync(95_000);
+    await p;
+    expect(useStore.getState().server).toBe('down');
+    expect(useStore.getState().scenarios).toHaveLength(0);
+    mockPing.mockResolvedValue(true);
+    mockSites.mockResolvedValue(sites as never);
+    await useStore.getState().retryAll();
+    expect(useStore.getState().sitesError).toBeNull();
+    expect(useStore.getState().sites).toHaveLength(2);
+    expect(ids()).toEqual(['connecting-ridge', 'apollo11']);
+  });
+
+  it('seedDefaults() twice still gives exactly two scenarios', () => {
+    useStore.setState({ sites: sites as never });
+    useStore.getState().seedDefaults();
+    useStore.getState().seedDefaults();
+    expect(useStore.getState().scenarios).toHaveLength(2);
+  });
+
+  it("slow pings (4 s each) still end 'down' at about 90 s", async () => {
+    vi.useFakeTimers();
+    mockPing.mockImplementation(() => new Promise((r) => setTimeout(() => r(false), 4000)));
+    let done = false;
+    const p = useStore.getState().wakeServer().then(() => { done = true; });
+    await vi.advanceTimersByTimeAsync(100_000);
+    await p;
+    expect(done).toBe(true);
+    expect(useStore.getState().server).toBe('down');
+  });
+});

@@ -10,7 +10,7 @@ const COLORS = ['#c77dff', '#2ec4b6', '#ff6b6b', '#e9ecef'];
 
 export type ServerStatus = 'checking' | 'waking' | 'ok' | 'down';
 const WAKE_RETRY_MS = 5000;
-const WAKE_MAX_RETRIES = 18;
+const WAKE_WINDOW_MS = 90_000;
 
 export type Scenario = {
   id: string; label: string; siteId: string | null; lat: number; lon: number;
@@ -23,6 +23,8 @@ type State = {
   playing: boolean; speedHoursPerSec: number; explain: boolean; panelMode: PanelMode; exaggeration: number;
   server: ServerStatus; sitesError: string | null;
   wakeServer: () => Promise<void>;
+  start: () => Promise<void>;
+  seedDefaults: () => void;
   retryAll: () => Promise<void>;
   loadSites: () => Promise<void>;
   addScenario: (s: NewScenario) => void;
@@ -59,7 +61,8 @@ export const useStore = create<State>((set, get) => {
           set({ server: 'checking' });
           if (await pingHealth()) { set({ server: 'ok' }); return; }
           set({ server: 'waking' });
-          for (let i = 0; i < WAKE_MAX_RETRIES; i++) {
+          const deadline = Date.now() + WAKE_WINDOW_MS;
+          while (Date.now() < deadline) {
             await new Promise((r) => setTimeout(r, WAKE_RETRY_MS));
             if (await pingHealth()) { set({ server: 'ok' }); return; }
           }
@@ -71,9 +74,24 @@ export const useStore = create<State>((set, get) => {
       return wakeLoop;
     },
 
-    retryAll: async () => {
+    start: async () => {
       await get().wakeServer();
+      if (get().server !== 'ok') return;
       await get().loadSites();
+      if (!get().sitesError) get().seedDefaults();
+    },
+
+    seedDefaults: () => {
+      const { sites, scenarios, addScenario } = get();
+      if (sites.length === 0 || scenarios.length > 0) return;
+      for (const id of ['connecting-ridge', 'apollo11']) {
+        const s = sites.find((x) => x.id === id);
+        if (s) addScenario({ label: s.name, siteId: s.id, lat: s.lat, lon: s.lon, start: DEFAULT_START, days: 30 });
+      }
+    },
+
+    retryAll: async () => {
+      await get().start();
       await Promise.all(get().scenarios.filter((x) => x.error).map((x) => get().runScenario(x.id)));
     },
 
