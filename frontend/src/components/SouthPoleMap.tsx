@@ -8,7 +8,13 @@ type Props = { onPick: (lat: number, lon: number) => void; picked: [number, numb
 export function SouthPoleMap({ onPick, picked }: Props) {
   const sites = useStore((s) => s.sites);
   const [meta, setMeta] = useState<TerrainMeta | null>(null);
-  useEffect(() => { void loadTerrainMeta().then(setMeta); }, []);
+  useEffect(() => {
+    let alive = true;
+    loadTerrainMeta()
+      .then((m) => { if (alive) setMeta(m); })
+      .catch((e) => console.error('Failed to load terrain meta', e));
+    return () => { alive = false; };
+  }, []);
   if (!meta) return null;
   const E = meta.extent_m;
   const toUV = (lat: number, lon: number) => {
