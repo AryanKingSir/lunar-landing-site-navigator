@@ -9,11 +9,14 @@ import { ScenarioList } from './components/ScenarioList';
 import { Terrain3D } from './components/Terrain3D';
 import { TimeScrubber } from './components/TimeScrubber';
 import { TimelineGantt } from './components/TimelineGantt';
+import { useUrlSync } from './lib/useUrlSync';
 import { useStore } from './store';
 
 export default function App() {
   const start = useStore((s) => s.start);
   const explain = useStore((s) => s.explain);
+
+  useUrlSync();
 
   useEffect(() => {
     void start();
