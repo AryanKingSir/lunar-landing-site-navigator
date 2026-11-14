@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { AddScenario } from './components/AddScenario';
+import { ComparisonGrid } from './components/ComparisonGrid';
 import { Header } from './components/Header';
 import { ScenarioList } from './components/ScenarioList';
 import { DEFAULT_START, useStore } from './store';
@@ -26,7 +27,7 @@ export default function App() {
         <AddScenario />
       </aside>
       <main className="main">
-        {/* Task 10: <ComparisonGrid /> */}
+        <ComparisonGrid />
         {/* Task 11/13: <div className="views"> <HorizonPanorama /> <Terrain3D /> </div> */}
         {/* Task 12: <TimelineGantt /> */}
       </main>
