@@ -23,7 +23,7 @@ export function TimeScrubber() {
       if (!st.playing) return;
       if (last === null) last = now;
       const end = maxDurationMs(st);
-      const next = st.offsetMs + (Math.min(now - last, 100) / 1000) * st.speedHoursPerSec * HOUR_MS;
+      const next = st.offsetMs + (Math.min(now - last, 500) / 1000) * st.speedHoursPerSec * HOUR_MS;
       last = now;
       if (next >= end) { st.setOffset(end); st.setPlaying(false); return; }
       st.setOffset(next);
