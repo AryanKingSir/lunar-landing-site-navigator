@@ -1,3 +1,6 @@
+import gzip
+import json
+
 from fastapi.testclient import TestClient
 
 from tests.markers import requires_kernels
@@ -37,3 +40,12 @@ def test_apollo11_two_days():
     assert set(d["metrics"]) == {"illumination_pct", "sun_time_pct", "longest_dark_h", "earth_vis_pct",
                                  "dte_pct", "mean_power_w", "energy_wh", "max_sun_el", "min_sun_el"}
     assert d["metrics"]["earth_vis_pct"] == 100.0  # near side, near the sub-Earth point
+
+
+@requires_kernels
+def test_thirty_day_response_is_compact():
+    c = _client()
+    body = {"lat": -89.4667, "lon": -136.667, "start": "2026-12-01T00:00:00Z", "end": "2026-12-31T00:00:00Z"}
+    d = c.post("/api/scenario", json=body).json()
+    assert len(gzip.compress(json.dumps(d).encode())) < 100_000
+    assert len(d["samples"]["sun_vec"][0]) == 3

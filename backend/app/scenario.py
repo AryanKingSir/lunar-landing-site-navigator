@@ -1,6 +1,7 @@
 """Combine ephemeris, terrain, DSN and power into one scenario result."""
 import json
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Literal
 
@@ -9,7 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app import dsn, ephemeris, power, terrain, visibility
 from app.config import DEM_RUNTIME, HORIZONS_DIR
-from app.sites import load_sites
+from app.sites import get_site, load_sites
 
 MAX_SAMPLES = 5_000  # UI max is 60 d @ 20 min = 4,320; keeps peak RAM under Render free tier (512 MB)
 CURATED_OBS_H = 2.0
@@ -66,11 +67,36 @@ def get_horizon(lat: float, lon: float, obs_h: float):
     return terrain.smooth_horizon(obs_h), "smooth sphere (no terrain data)", False, None
 
 
+log = logging.getLogger(__name__)
+
+DEFAULT_WARM = [("connecting-ridge", 30), ("apollo11", 30)]
+WARM_START = "2026-12-01T00:00:00Z"
+
+
+def warm_default_scenarios() -> int:
+    """Pre-compute the frontend's default request per site so the first user hits the cache."""
+    done = 0
+    for site_id, days in DEFAULT_WARM:
+        try:
+            site = get_site(site_id)
+            if site is None:
+                raise ValueError(f"unknown site {site_id}")
+            start = datetime.fromisoformat(WARM_START.replace("Z", "+00:00"))
+            end = (start + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            compute_scenario(ScenarioRequest(
+                lat=site["lat"], lon=site["lon"], start=WARM_START, end=end, step_min=10, obs_h=2,
+                panel_mode="vertical-tracking", panel_az=0, area_m2=1, efficiency=0.3))
+            done += 1
+        except Exception:
+            log.exception("warm-up failed for %s", site_id)
+    return done
+
+
 def compute_scenario(req: ScenarioRequest) -> dict:
     return _compute(req.model_dump_json())
 
 
-def _r(a, nd=3):
+def _r(a, nd=2):
     return np.round(np.asarray(a, float), nd).tolist()
 
 
@@ -101,16 +127,16 @@ def _compute(key: str) -> dict:
         "terrain_source": source,
         "terrain_partial": bool(partial),
         "site_height_m": h0,
-        "horizon": {"az": _r(np.arange(len(mask)) * 360.0 / len(mask), 2), "el": _r(mask)},
+        "horizon": {"az": _r(np.arange(len(mask)) * 360.0 / len(mask), 2), "el": _r(mask, 2)},
         "samples": {
             "t": t.tolist(),
-            "sun_az": _r(e.sun_az), "sun_el": _r(e.sun_el), "sun_frac": _r(sun_frac),
-            "earth_az": _r(e.earth_az), "earth_el": _r(e.earth_el), "earth_frac": _r(earth_frac),
+            "sun_az": _r(e.sun_az), "sun_el": _r(e.sun_el), "sun_frac": _r(sun_frac, 3),
+            "earth_az": _r(e.earth_az), "earth_el": _r(e.earth_el), "earth_frac": _r(earth_frac, 3),
             "earth_vis": earth_vis.tolist(),
             **{f"dsn_{k}": v.tolist() for k, v in stations.items()},
             "dte": dte.tolist(),
-            "power_w": _r(pw, 1),
-            "sun_vec": _r(e.sun_vec, 5), "earth_vec": _r(e.earth_vec, 5),
+            "power_w": _r(pw, 0),
+            "sun_vec": _r(e.sun_vec, 4), "earth_vec": _r(e.earth_vec, 4),
         },
         "windows": {
             "sun": visibility.to_windows(t, sun_up, step_ms),
