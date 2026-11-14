@@ -11,7 +11,7 @@ import numpy as np
 R_MOON_M = 1737400.0
 N_AZ = 720
 MAX_RANGE_M = 150_000.0
-FULL_COVERAGE_LAT = -84.9  # south of this, 150 km rays stay inside the 80S DEM disk
+FULL_COVERAGE_LAT = -84.95  # south of this (exact bound ~-84.95), 150 km rays stay inside the 80S DEM disk
 
 
 @dataclass(frozen=True, eq=False)
@@ -77,13 +77,20 @@ def horizon_mask(dem: Dem, lat: float, lon: float, obs_h: float = 2.0,
     h0 = float(sample(dem, np.array([x0]), np.array([y0]))[0])
     if np.isnan(h0):
         raise ValueError(f"site {lat},{lon} is outside the DEM")
-    colat = np.radians(90.0 + lat)
-    k = 2.0 / (1.0 + np.cos(colat))  # stereographic scale factor (projected / ground)
-    az = np.radians(np.arange(n_az) * 360.0 / n_az)
-    ang = np.radians(lon) + az       # direction in projected plane: (sin, cos)
+    az = np.radians(np.arange(n_az) * 360.0 / n_az)[:, None]  # clockwise from local north
     d = np.arange(1, int(max_range_m / dem.scale_m) + 1) * dem.scale_m  # ground metres
-    X = x0 + np.sin(ang)[:, None] * d[None, :] * k
-    Y = y0 + np.cos(ang)[:, None] * d[None, :] * k
+    delta = (d / R_MOON_M)[None, :]
+    lam1 = np.radians(lon)
+    if abs(lat + 90.0) < 1e-9:
+        # degenerate at the pole: azimuth A heads along meridian lon + A
+        phi2 = np.broadcast_to(np.radians(-90.0) + delta, (n_az, delta.shape[1]))
+        lam2 = lam1 + az + np.zeros_like(delta)
+    else:
+        phi1 = np.radians(lat)
+        phi2 = np.arcsin(np.sin(phi1) * np.cos(delta) + np.cos(phi1) * np.sin(delta) * np.cos(az))
+        lam2 = lam1 + np.arctan2(np.sin(az) * np.sin(delta) * np.cos(phi1),
+                                 np.cos(delta) - np.sin(phi1) * np.sin(phi2))
+    X, Y = latlon_to_xy(np.degrees(phi2), np.degrees(lam2))
     H = sample(dem, X, Y)
     theta = d / R_MOON_M
     r_obs = R_MOON_M + h0 + obs_h
@@ -91,7 +98,9 @@ def horizon_mask(dem: Dem, lat: float, lon: float, obs_h: float = 2.0,
     el = np.degrees(np.arctan2(r_t * np.cos(theta) - r_obs, r_t * np.sin(theta)))
     el = np.where(np.isnan(el), -np.inf, el)
     mask = el.max(axis=1)
-    return np.maximum(mask, -horizon_dip_deg(obs_h)) if np.isinf(mask).any() else mask
+    # Only bins whose whole ray lies off the DEM get the smooth-sphere floor;
+    # bins with any valid terrain keep their computed value untouched.
+    return np.where(np.isneginf(mask), -horizon_dip_deg(obs_h), mask)
 
 
 def load_dem_img(path: Path, n: int = 7600, scale_m: float = 80.0) -> Dem:
