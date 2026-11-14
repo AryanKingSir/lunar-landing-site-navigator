@@ -3,6 +3,7 @@ import { AddScenario } from './components/AddScenario';
 import { ComparisonGrid } from './components/ComparisonGrid';
 import { ExplainPanel } from './components/ExplainPanel';
 import { Header } from './components/Header';
+import { StatusBanner } from './components/StatusBanner';
 import { HorizonPanorama } from './components/HorizonPanorama';
 import { ScenarioList } from './components/ScenarioList';
 import { Terrain3D } from './components/Terrain3D';
@@ -12,9 +13,11 @@ import { DEFAULT_START, useStore } from './store';
 
 export default function App() {
   const loadSites = useStore((s) => s.loadSites);
+  const wakeServer = useStore((s) => s.wakeServer);
   const explain = useStore((s) => s.explain);
 
   useEffect(() => {
+    void wakeServer();
     void loadSites().then(() => {
       const { sites, scenarios, addScenario } = useStore.getState();
       if (scenarios.length > 0) return;
@@ -23,10 +26,11 @@ export default function App() {
         if (s) addScenario({ label: s.name, siteId: s.id, lat: s.lat, lon: s.lon, start: DEFAULT_START, days: 30 });
       }
     });
-  }, [loadSites]);
+  }, [loadSites, wakeServer]);
 
   return (
     <div className="app">
+      <StatusBanner />
       <Header />
       <aside className="sidebar">
         <ScenarioList />

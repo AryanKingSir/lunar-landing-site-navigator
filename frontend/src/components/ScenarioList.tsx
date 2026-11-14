@@ -7,6 +7,7 @@ export function ScenarioList() {
   const setActive = useStore((s) => s.setActive);
   const removeScenario = useStore((s) => s.removeScenario);
   const duplicateShifted = useStore((s) => s.duplicateShifted);
+  const runScenario = useStore((s) => s.runScenario);
   if (scenarios.length === 0) return <p className="muted">No scenarios yet. Add a site below.</p>;
   return (
     <ul className="cards">
@@ -29,7 +30,12 @@ export function ScenarioList() {
             {s.lat.toFixed(3)}°, {s.lon.toFixed(3)}° · {s.start.slice(0, 16).replace('T', ' ')} UTC · {s.days} d
           </div>
           {s.loading && <div className="muted">Computing… (the first request can take up to a minute while the server wakes)</div>}
-          {s.error && <div className="error">{s.error}</div>}
+          {s.error && (
+            <div className="error">
+              {s.error}{' '}
+              <button onClick={(e) => { e.stopPropagation(); void runScenario(s.id); }}>Try again</button>
+            </div>
+          )}
           {s.result && (
             <span className={`badge ${s.result.terrain_source.startsWith('LOLA') ? 'terrain' : ''}`}>
               {s.result.terrain_source}{s.result.terrain_partial ? ' · partial far-field' : ''}

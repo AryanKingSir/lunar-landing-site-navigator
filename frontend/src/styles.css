@@ -18,8 +18,8 @@ input, select { background: var(--bg); border: 1px solid var(--line); border-rad
 .muted { color: var(--muted); }
 .error { color: var(--danger); }
 
-.app { display: grid; height: 100%; grid-template-columns: 340px 1fr; grid-template-rows: auto 1fr auto;
-  grid-template-areas: 'header header' 'sidebar main' 'scrubber scrubber'; }
+.app { display: grid; height: 100%; grid-template-columns: 340px 1fr; grid-template-rows: auto auto 1fr auto;
+  grid-template-areas: 'banner banner' 'header header' 'sidebar main' 'scrubber scrubber'; }
 .header { grid-area: header; display: flex; align-items: center; gap: 16px; padding: 10px 18px; border-bottom: 1px solid var(--line); }
 .header h1 { font-size: 16px; margin: 0; letter-spacing: 0.04em; text-transform: uppercase; }
 .header .spacer { flex: 1; }
@@ -33,7 +33,7 @@ input, select { background: var(--bg); border: 1px solid var(--line); border-rad
 .views { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
 @media (max-width: 1200px) { .views { grid-template-columns: 1fr; } }
 @media (max-width: 800px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; grid-template-areas: 'header' 'sidebar' 'main' 'scrubber'; height: auto; }
+  .app { grid-template-columns: 1fr; grid-template-rows: auto auto auto 1fr auto; grid-template-areas: 'banner' 'header' 'sidebar' 'main' 'scrubber'; height: auto; }
   .header { flex-wrap: wrap; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
 }
@@ -67,3 +67,9 @@ table.compare td.best { color: var(--dte); }
 .three-wrap .overlay { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 11px; }
 svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
 .three-wrap .overlay input[type=range] { width: 80px; vertical-align: middle; }
+
+.status-banner { grid-area: banner; display: flex; align-items: center; gap: 12px; padding: 8px 18px;
+  background: var(--panel-2); border-bottom: 1px solid var(--danger); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

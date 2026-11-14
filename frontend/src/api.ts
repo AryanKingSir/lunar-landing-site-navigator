@@ -22,3 +22,16 @@ export async function fetchScenario(req: ScenarioRequest): Promise<ScenarioResul
     }),
   );
 }
+
+export async function pingHealth(timeoutMs = 4000): Promise<boolean> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE}/api/health`, { signal: ctl.signal });
+    return res.status === 200;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}

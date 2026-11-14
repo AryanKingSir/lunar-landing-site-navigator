@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchScenario, fetchSites } from './api';
+import { fetchScenario, fetchSites, pingHealth } from './api';
 import { addDaysIso, DAY_MS } from './lib/time';
 import type { PanelMode, ScenarioResult, Site } from './types';
 
@@ -7,6 +7,10 @@ export const SYNODIC_DAYS = 29.53;
 export const MAX_SCENARIOS = 4;
 export const DEFAULT_START = '2026-12-01T00:00:00Z';
 const COLORS = ['#c77dff', '#2ec4b6', '#ff6b6b', '#e9ecef'];
+
+export type ServerStatus = 'checking' | 'waking' | 'ok' | 'down';
+const WAKE_RETRY_MS = 5000;
+const WAKE_MAX_RETRIES = 18;
 
 export type Scenario = {
   id: string; label: string; siteId: string | null; lat: number; lon: number;
@@ -17,6 +21,9 @@ export type NewScenario = Pick<Scenario, 'label' | 'siteId' | 'lat' | 'lon' | 's
 type State = {
   sites: Site[]; scenarios: Scenario[]; activeId: string | null; offsetMs: number;
   playing: boolean; speedHoursPerSec: number; explain: boolean; panelMode: PanelMode; exaggeration: number;
+  server: ServerStatus; sitesError: string | null;
+  wakeServer: () => Promise<void>;
+  retryAll: () => Promise<void>;
   loadSites: () => Promise<void>;
   addScenario: (s: NewScenario) => void;
   duplicateShifted: (id: string, days: number) => void;
@@ -32,6 +39,7 @@ type State = {
 };
 
 let counter = 0;
+let wakeLoop: Promise<void> | null = null;
 const latestRequest = new Map<string, number>();
 
 export const useStore = create<State>((set, get) => {
@@ -42,7 +50,40 @@ export const useStore = create<State>((set, get) => {
     sites: [], scenarios: [], activeId: null, offsetMs: 0, playing: false,
     speedHoursPerSec: 6, explain: false, panelMode: 'vertical-tracking', exaggeration: 1,
 
-    loadSites: async () => set({ sites: await fetchSites() }),
+    server: 'checking', sitesError: null,
+
+    wakeServer: () => {
+      if (wakeLoop) return wakeLoop;
+      wakeLoop = (async () => {
+        try {
+          set({ server: 'checking' });
+          if (await pingHealth()) { set({ server: 'ok' }); return; }
+          set({ server: 'waking' });
+          for (let i = 0; i < WAKE_MAX_RETRIES; i++) {
+            await new Promise((r) => setTimeout(r, WAKE_RETRY_MS));
+            if (await pingHealth()) { set({ server: 'ok' }); return; }
+          }
+          set({ server: 'down' });
+        } finally {
+          wakeLoop = null;
+        }
+      })();
+      return wakeLoop;
+    },
+
+    retryAll: async () => {
+      await get().wakeServer();
+      await get().loadSites();
+      await Promise.all(get().scenarios.filter((x) => x.error).map((x) => get().runScenario(x.id)));
+    },
+
+    loadSites: async () => {
+      try {
+        set({ sites: await fetchSites(), sitesError: null });
+      } catch (e) {
+        set({ sitesError: (e as Error).message });
+      }
+    },
 
     addScenario: (s) => {
       if (get().scenarios.length >= MAX_SCENARIOS) return;
