@@ -154,19 +154,94 @@ def test_health_answers_while_compute_is_busy():
     assert r.status_code == 200
 
 
+def _small_day(day):
+    from app import scenario
+
+    return scenario.ScenarioRequest(lat=0.67408, lon=23.47297, start=f"2026-12-{day:02d}T00:00:00Z",
+                                    end=f"2026-12-{day + 2:02d}T00:00:00Z", step_min=60)
+
+
 @requires_kernels
 def test_cache_evicts_least_recently_used(monkeypatch):
     from app import scenario
 
     scenario.cache_clear()
     monkeypatch.setattr(scenario, "_CACHE_MAX", 2)
-    a, b, c = _small(lon=23.0), _small(lon=23.1), _small(lon=23.2)
-    for r in (a, b, c):
-        scenario.compute_scenario(r)
+    a, b, c = _small_day(1), _small_day(5), _small_day(9)
+    scenario.compute_scenario(a)
+    scenario.compute_scenario(b)
+    scenario.compute_scenario(a)  # hit: b is now the least recently used
+    scenario.compute_scenario(c)
     assert scenario.cache_stats()["size"] == 2
     misses = scenario.cache_stats()["misses"]
     scenario.compute_scenario(a)
-    assert scenario.cache_stats()["misses"] == misses + 1
+    assert scenario.cache_stats()["misses"] == misses  # a survived
+    scenario.compute_scenario(b)
+    assert scenario.cache_stats()["misses"] == misses + 1  # b was evicted
+
+
+@requires_kernels
+def test_waiter_cap_rejects_immediately(monkeypatch):
+    import threading
+    import time
+
+    import pytest
+
+    from app import scenario
+
+    scenario.cache_clear()
+    monkeypatch.setattr(scenario, "MAX_WAITERS", 2)
+    monkeypatch.setattr(scenario, "COMPUTE_WAIT_S", 5)
+    results = []
+
+    def run(req):
+        results.append(scenario.compute_scenario(req))
+
+    threads = [threading.Thread(target=run, args=(_small_day(d),)) for d in (1, 5)]
+    scenario._compute_sem.acquire()
+    try:
+        for t in threads:
+            t.start()
+        deadline = time.monotonic() + 2
+        while scenario.cache_stats()["waiting"] < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert scenario.cache_stats()["waiting"] == 2
+        t0 = time.monotonic()
+        with pytest.raises(scenario.ServerBusy):
+            scenario.compute_scenario(_small_day(9))
+        assert time.monotonic() - t0 < 1.0
+    finally:
+        scenario._compute_sem.release()
+        for t in threads:
+            t.join(timeout=30)
+    assert len(results) == 2
+    assert scenario.cache_stats()["waiting"] == 0
+
+
+@requires_kernels
+def test_waiter_count_does_not_leak_on_timeout(monkeypatch):
+    import pytest
+
+    from app import scenario
+
+    scenario.cache_clear()
+    monkeypatch.setattr(scenario, "COMPUTE_WAIT_S", 0.05)
+    scenario._compute_sem.acquire()
+    try:
+        with pytest.raises(scenario.ServerBusy):
+            scenario.compute_scenario(_small_day(1))
+    finally:
+        scenario._compute_sem.release()
+    assert scenario.cache_stats()["waiting"] == 0
+
+
+def test_health_and_sites_are_async():
+    import inspect
+
+    from app import main
+
+    assert inspect.iscoroutinefunction(main.health)
+    assert inspect.iscoroutinefunction(main.sites)
 
 
 def test_warm_treats_server_busy_as_failure(monkeypatch):

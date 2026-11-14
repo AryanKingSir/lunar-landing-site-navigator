@@ -95,6 +95,7 @@ def warm_default_scenarios() -> int:
 
 
 COMPUTE_WAIT_S = 20  # max seconds a cache miss waits for the single compute slot
+MAX_WAITERS = 4  # max cache-miss callers parked on the compute slot; more are rejected at once
 _CACHE_MAX = 8  # full response dicts are MBs each; keep few so a 512 MB host does not OOM
 
 
@@ -106,6 +107,7 @@ class ServerBusy(Exception):
 _cache: "OrderedDict[str, dict]" = OrderedDict()
 _cache_lock = threading.Lock()
 _stats = {"hits": 0, "misses": 0}
+_waiting = 0  # callers currently waiting for _compute_sem; guarded by _cache_lock
 # One computation at a time keeps peak RAM bounded.
 _compute_sem = threading.Semaphore(1)
 
@@ -119,7 +121,7 @@ def cache_clear() -> None:
 
 def cache_stats() -> dict:
     with _cache_lock:
-        return {"hits": _stats["hits"], "misses": _stats["misses"], "size": len(_cache)}
+        return {"hits": _stats["hits"], "misses": _stats["misses"], "size": len(_cache), "waiting": _waiting}
 
 
 def _cache_get(key: str, count: bool):
@@ -137,7 +139,17 @@ def compute_scenario(req: ScenarioRequest) -> dict:
     hit = _cache_get(key, True)
     if hit is not None:
         return hit
-    if not _compute_sem.acquire(timeout=COMPUTE_WAIT_S):
+    global _waiting
+    with _cache_lock:
+        if _waiting >= MAX_WAITERS:
+            raise ServerBusy()
+        _waiting += 1
+    try:
+        acquired = _compute_sem.acquire(timeout=COMPUTE_WAIT_S)
+    finally:
+        with _cache_lock:
+            _waiting -= 1
+    if not acquired:
         raise ServerBusy()
     try:
         # another thread may have computed the same request while we waited
