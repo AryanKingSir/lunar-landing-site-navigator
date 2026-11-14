@@ -57,11 +57,17 @@ describe('summarize', () => {
     const s = sent({ earth_vis_pct: 50 }, { earth: [[0, 5 * D], [10 * D, 12 * D]] });
     expect(s.endsWith('Earth is in view for the first 5 days. It comes back later.')).toBe(true);
   });
+  it('words short and single-unit opening windows naturally', () => {
+    const H = 3_600_000;
+    expect(sent({ earth_vis_pct: 1 }, { earth: [[0, 0.5 * H]] })).toContain('Earth is in view for less than an hour at the start.');
+    expect(sent({ earth_vis_pct: 1 }, { earth: [[0, H]] })).toContain('Earth is in view for the first hour.');
+    expect(sent({ earth_vis_pct: 4 }, { earth: [[0, D]] })).toContain('Earth is in view for the first day.');
+  });
   it('never produces ungrammatical or broken text over a grid', () => {
-    const bad = /\b0 (days|hours)\b|\b1 (days|hours)\b|NaN|undefined/;
+    const bad = /\b0 (days|hours)\b|\b1 (days|hours)\b|first (less|1 )|NaN|undefined/;
     for (const sun of [0, 0.4, 5, 30, 50, 75, 95, 99.6, 100])
       for (const dark of [0, 0.3, 1, 30, 47.6, 48, 600])
-        for (const len of [0.2, 1, 1.4, 10])
+        for (const len of [0.02, 1 / 24, 0.2, 1, 1.4, 10])
           for (const start of [0, 3.5])
             for (const earth of [0.4, 20, 100]) {
               const s = sent({ sun_time_pct: sun, longest_dark_h: dark, earth_vis_pct: earth }, { earth: [[start * D, (start + len) * D]] });

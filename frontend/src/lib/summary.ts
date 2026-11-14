@@ -34,8 +34,14 @@ function earthSentence(pct: number, windows: [number, number][], rangeStart: num
   const first = windows[0];
   if (!first) return `Earth is in view about ${Math.round(pct)}% of the time.`;
   const [s, e] = first;
+  const d = duration(e - s);
+  const atStart =
+    d === 'less than an hour' ? 'Earth is in view for less than an hour at the start.'
+    : d === '1 day' ? 'Earth is in view for the first day.'
+    : d === '1 hour' ? 'Earth is in view for the first hour.'
+    : `Earth is in view for the first ${d}.`;
   const base = s <= rangeStart
-    ? `Earth is in view for the first ${duration(e - s)}.`
+    ? atStart
     : `Earth comes into view on day ${Math.floor((s - rangeStart) / DAY_MS)} and stays for ${duration(e - s)}.`;
   return windows.length >= 2 ? `${base} It comes back later.` : base;
 }
