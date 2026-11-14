@@ -70,7 +70,7 @@ Work test-first on the backend (pytest). Commit after each step.
 0. **Spec + plan docs.** Save this design to `docs/superpowers/specs/2026-11-14-lunar-landing-site-navigator-design.md`, then `superpowers:writing-plans` for the task-level plan. Commit.
 1. **Scaffold (H0–2).** uv backend, Vite frontend, `.gitignore` (data/raw), download script. Downloads run in the background.
 2. **Ephemeris (H2–5).** TDD against a JPL Horizons fixture (topocentric `coord@301` for 2 sites × 3 times, fetched once and stored in `tests/fixtures`). Tolerance 0.05°.
-3. **Terrain (H5–10).** Tests: a flat synthetic DEM gives mask ≈ −dip (about −0.05°); a synthetic Gaussian peak gives the analytic angle; reading the real DEM gives sane values (Shackleton rim has a low horizon, the crater floor a high one). Then build curated masks, the 240 m npy and the 3D heightmap PNG.
+3. **Terrain (H5–10).** Tests: a flat synthetic DEM gives mask ≈ −dip (about −0.09°); a synthetic Gaussian peak gives the analytic angle; reading the real DEM gives sane values (Shackleton rim has a low horizon, the crater floor a high one). Then build curated masks, the 240 m npy and the 3D heightmap PNG.
 4. **Visibility, DSN, power, scenario, API (H10–14).** Unit tests for the disk-fraction formula, interval extraction and DSN checks. API test via FastAPI TestClient.
 5. **Frontend core (H14–26).** Layout and theme (load the `frontend-design` skill first), SitePicker, ScenarioBar, MetricCards, HorizonPanorama, TimelineGantt, TimeScrubber. **In parallel:** a subagent builds Terrain3D against the same store and API contract.
 6. **Explain mode + polish (H26–30).** Guided tour, tooltips, empty and error states, and loading states for Render cold starts.
