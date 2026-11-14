@@ -3,6 +3,7 @@ import json
 import logging
 import threading
 from datetime import datetime, timedelta, timezone
+from collections import OrderedDict
 from functools import lru_cache
 from typing import Literal
 
@@ -93,21 +94,73 @@ def warm_default_scenarios() -> int:
     return done
 
 
-# One computation at a time: a concurrent caller waits and then hits the cache, and peak RAM stays bounded (512 MB host).
-_compute_lock = threading.Lock()
+COMPUTE_WAIT_S = 20  # max seconds a cache miss waits for the single compute slot
+_CACHE_MAX = 8  # full response dicts are MBs each; keep few so a 512 MB host does not OOM
+
+
+class ServerBusy(Exception):
+    """The compute slot stayed taken for longer than COMPUTE_WAIT_S."""
+
+
+# Short-held lock: dictionary operations only, never held during computation.
+_cache: "OrderedDict[str, dict]" = OrderedDict()
+_cache_lock = threading.Lock()
+_stats = {"hits": 0, "misses": 0}
+# One computation at a time keeps peak RAM bounded.
+_compute_sem = threading.Semaphore(1)
+
+
+def cache_clear() -> None:
+    with _cache_lock:
+        _cache.clear()
+        _stats["hits"] = 0
+        _stats["misses"] = 0
+
+
+def cache_stats() -> dict:
+    with _cache_lock:
+        return {"hits": _stats["hits"], "misses": _stats["misses"], "size": len(_cache)}
+
+
+def _cache_get(key: str, count: bool):
+    with _cache_lock:
+        if key in _cache:
+            _cache.move_to_end(key)
+            if count:
+                _stats["hits"] += 1
+            return _cache[key]
+    return None
 
 
 def compute_scenario(req: ScenarioRequest) -> dict:
-    with _compute_lock:
-        return _compute(req.model_dump_json())
+    key = req.model_dump_json()
+    hit = _cache_get(key, True)
+    if hit is not None:
+        return hit
+    if not _compute_sem.acquire(timeout=COMPUTE_WAIT_S):
+        raise ServerBusy()
+    try:
+        # another thread may have computed the same request while we waited
+        hit = _cache_get(key, True)
+        if hit is not None:
+            return hit
+        with _cache_lock:
+            _stats["misses"] += 1
+        result = _compute(key)
+        with _cache_lock:
+            _cache[key] = result
+            _cache.move_to_end(key)
+            while len(_cache) > _CACHE_MAX:
+                _cache.popitem(last=False)
+        return result
+    finally:
+        _compute_sem.release()
 
 
 def _r(a, nd=2):
     return np.round(np.asarray(a, float), nd).tolist()
 
 
-# Full response dicts are MBs each; keep few so Render free (512 MB) does not OOM
-@lru_cache(maxsize=8)
 def _compute(key: str) -> dict:
     req = ScenarioRequest.model_validate_json(key)
     step_ms = req.step_min * 60_000

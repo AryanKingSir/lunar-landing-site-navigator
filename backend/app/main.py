@@ -2,11 +2,12 @@ import os
 import threading
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 
-from app.scenario import ScenarioRequest, compute_scenario, warm_default_scenarios
+from app.scenario import ScenarioRequest, ServerBusy, compute_scenario, warm_default_scenarios
 from app.sites import load_sites
 
 @asynccontextmanager
@@ -27,15 +28,21 @@ app.add_middleware(
 
 
 @app.get("/api/health")
-def health() -> dict:
+async def health() -> dict:
     return {"status": "ok"}
 
 
 @app.get("/api/sites")
-def sites() -> list[dict]:
+async def sites() -> list[dict]:
     return load_sites()
 
 
 @app.post("/api/scenario")
 def scenario(req: ScenarioRequest) -> dict:
     return compute_scenario(req)
+
+
+@app.exception_handler(ServerBusy)
+async def server_busy_handler(_request: Request, _exc: ServerBusy) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": "The server is busy. Try again in a moment."},
+                        headers={"Retry-After": "5"})
