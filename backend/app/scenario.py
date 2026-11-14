@@ -74,7 +74,8 @@ def _r(a, nd=3):
     return np.round(np.asarray(a, float), nd).tolist()
 
 
-@lru_cache(maxsize=64)
+# Full response dicts are MBs each; keep few so Render free (512 MB) does not OOM
+@lru_cache(maxsize=8)
 def _compute(key: str) -> dict:
     req = ScenarioRequest.model_validate_json(key)
     step_ms = req.step_min * 60_000
