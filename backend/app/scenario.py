@@ -11,7 +11,7 @@ from app import dsn, ephemeris, power, terrain, visibility
 from app.config import DEM_RUNTIME, HORIZONS_DIR
 from app.sites import load_sites
 
-MAX_SAMPLES = 20_000
+MAX_SAMPLES = 5_000  # UI max is 60 d @ 20 min = 4,320; keeps peak RAM under Render free tier (512 MB)
 CURATED_OBS_H = 2.0
 
 

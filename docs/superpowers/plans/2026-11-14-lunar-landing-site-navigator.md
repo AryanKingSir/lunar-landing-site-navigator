@@ -29,7 +29,7 @@ Spec: `docs/superpowers/specs/2026-11-14-lunar-landing-site-navigator-design.md`
 - DTE requires Earth visible AND at least one DSN complex (Goldstone, Madrid, Canberra) seeing the Moon at ≥ 10° elevation.
 - Power: `P = 1361·(1 AU / r)²·frac·max(cos i, 0)·area·eff`. Defaults: vertical sun-tracking panel, 1 m², 30 %.
 - Timestamps cross the API as UTC epoch milliseconds (ints). Request datetimes are ISO-8601 UTC.
-- Max 20,000 samples per scenario request.
+- Max 5,000 samples per scenario request (memory cap for 512 MB hosting).
 - Max 4 scenarios in the UI.
 - UI: dark mission-control theme. Sun = amber `#f5a524`, Earth = blue `#4cc9f0`, DTE = green `#80ed99`.
 - Commit on `main` after every task (user-approved workflow).
