@@ -44,7 +44,7 @@ export function ComparisonGrid() {
   if (ready.length === 0) return <section className="panel"><h2>Comparison</h2><p className="muted">Waiting for results…</p></section>;
   return (
     <section className="panel">
-      <h2>Comparison <span className="muted">· at T+{formatDuration(offsetMs)}</span></h2>
+      <h2>Comparison <span className="muted">· at T+{offsetMs === 0 ? '0' : formatDuration(offsetMs)}</span></h2>
       <table className="compare">
         <thead>
           <tr><th />{ready.map((s) => <th key={s.id} style={{ color: s.color } as CSSProperties}>{s.label}</th>)}</tr>

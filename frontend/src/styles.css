@@ -64,5 +64,6 @@ table.compare td.best { color: var(--dte); }
 .explain { border-color: var(--sun); }
 .explain .steps { display: flex; gap: 8px; align-items: center; }
 .three-wrap { position: relative; height: 380px; border-radius: 6px; overflow: hidden; background: #000; }
-.three-wrap .overlay { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.three-wrap .overlay { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 11px; }
 svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.three-wrap .overlay input[type=range] { width: 80px; vertical-align: middle; }

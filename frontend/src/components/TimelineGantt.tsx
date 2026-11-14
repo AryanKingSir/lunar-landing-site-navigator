@@ -12,6 +12,11 @@ const LANES: { key: 'sun' | 'earth' | 'dte'; label: string; color: string }[] = 
   { key: 'dte', label: 'DTE', color: 'var(--dte)' },
 ];
 
+function shortLabel(label: string) {
+  const base = label.split(' (')[0];
+  return base.length > 20 ? `${base.slice(0, 19)}…` : base;
+}
+
 export function TimelineGantt() {
   const allScenarios = useStore((s) => s.scenarios);
   const offsetMs = useStore((s) => s.offsetMs);
@@ -30,7 +35,7 @@ export function TimelineGantt() {
 
     const grid = ticks.map((d) => (
       <g key={d}><line x1={x(d * DAY_MS)} x2={x(d * DAY_MS)} y1={TOP - 4} y2={H} stroke="#141c27" />
-        <text x={x(d * DAY_MS)} y={11} textAnchor="middle">{d}d</text></g>
+        <text x={x(d * DAY_MS)} y={11} textAnchor={d === ticks[ticks.length - 1] ? 'end' : 'middle'}>{d}d</text></g>
     ));
     const lanes = scenarios.map((s, gi) => {
       const t0 = s.result!.samples.t[0];
@@ -40,7 +45,8 @@ export function TimelineGantt() {
         return (
           <g key={`${s.id}-${lane.key}`}>
             <text x={4} y={yy + ROW - 2} style={{ fill: li === 0 ? s.color : undefined }}>
-              {li === 0 ? `${s.label.slice(0, 18)} · ${lane.label}` : lane.label}
+              <title>{s.label}</title>
+              {li === 0 ? `${shortLabel(s.label)} · ${lane.label}` : lane.label}
             </text>
             <rect x={LABEL} y={yy} width={x(s.days * DAY_MS) - LABEL} height={ROW} fill="#0a0e14" />
             {wins.map(([a, b], k) => (

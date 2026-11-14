@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { AddScenario } from './components/AddScenario';
 import { ComparisonGrid } from './components/ComparisonGrid';
+import { ExplainPanel } from './components/ExplainPanel';
 import { Header } from './components/Header';
 import { HorizonPanorama } from './components/HorizonPanorama';
 import { ScenarioList } from './components/ScenarioList';
@@ -11,6 +12,7 @@ import { DEFAULT_START, useStore } from './store';
 
 export default function App() {
   const loadSites = useStore((s) => s.loadSites);
+  const explain = useStore((s) => s.explain);
 
   useEffect(() => {
     void loadSites().then(() => {
@@ -31,6 +33,7 @@ export default function App() {
         <AddScenario />
       </aside>
       <main className="main">
+        {explain && <ExplainPanel />}
         <ComparisonGrid />
         <div className="views"><HorizonPanorama /><Terrain3D /></div>
         <TimelineGantt />
