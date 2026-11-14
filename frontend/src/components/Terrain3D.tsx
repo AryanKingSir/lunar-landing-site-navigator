@@ -74,7 +74,7 @@ function SunEarth({ target, reach, zMax }: { target: V3; reach: number; zMax: nu
   return (
     <>
       <directionalLight ref={light} castShadow position={[sun[0] * LIGHT_DIST, sun[1] * LIGHT_DIST, sun[2] * LIGHT_DIST]}
-        intensity={3} shadow-mapSize={[4096, 4096]} shadow-bias={-0.0004} />
+        intensity={3} shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} />
       <mesh position={at(sun, 250)}><sphereGeometry args={[5, 24, 24]} /><meshBasicMaterial color="#f5a524" wireframe={!sunVisible} transparent={!sunVisible} opacity={sunVisible ? 1 : 0.25} /></mesh>
       {earth && <mesh position={at(earth, 250)}><sphereGeometry args={[8, 24, 24]} /><meshBasicMaterial color="#4cc9f0" wireframe={!earthVisible} transparent={!earthVisible} opacity={earthVisible ? 1 : 0.25} /></mesh>}
     </>
@@ -107,7 +107,7 @@ function Scene({ terrain }: { terrain: Terrain }) {
     <>
       <color attach="background" args={['#000']} />
       <Stars radius={3000} depth={200} count={4000} factor={6} fade />
-      <ambientLight intensity={0.03} />
+      <ambientLight intensity={0.1} />
       <SunEarth target={target} reach={reach} zMax={zMax} />
       <TerrainMesh terrain={terrain} ex={ex} />
       {pins.map(({ id, color, p }) => (
@@ -124,12 +124,14 @@ function Scene({ terrain }: { terrain: Terrain }) {
 /** Live legend; the only DOM piece that ticks with mission time, so the rest of the panel stays still. */
 function BodyLegend() {
   const samples = useStore((s) => activeScenario(s)?.result?.samples);
+  const label = useStore((s) => activeScenario(s)?.label);
   const offsetMs = useStore((s) => s.offsetMs);
   if (!samples) return null;
   const i = indexAt(samples.t, samples.t[0] + offsetMs);
+  const site = (label ?? 'site').split(' (')[0];
   return (
     <span className="mono">
-      <span style={{ color: 'var(--sun)' }}>Sun</span> {samples.sun_frac[i] > 0 ? 'visible' : 'hidden'} · <span style={{ color: 'var(--earth)' }}>Earth</span> {samples.earth_vis[i] ? 'visible' : 'hidden'}
+      At {site}: <span style={{ color: 'var(--sun)' }}>Sun</span> {samples.sun_frac[i] > 0 ? 'visible' : 'hidden'}, <span style={{ color: 'var(--earth)' }}>Earth</span> {samples.earth_vis[i] ? 'visible' : 'hidden'}
     </span>
   );
 }
@@ -149,6 +151,7 @@ class WebGLBoundary extends Component<{ children: ReactNode }, { failed: boolean
 export function Terrain3D() {
   const terrain = useTerrain();
   const lat = useStore((s) => activeScenario(s)?.lat);
+  const label = useStore((s) => activeScenario(s)?.label);
   const ex = useStore((s) => s.exaggeration);
   const setEx = useStore((s) => s.setExaggeration);
   const outside = lat !== undefined && lat > -84.5;
@@ -158,7 +161,7 @@ export function Terrain3D() {
       <div className="three-wrap">
         {terrain ? (
           <WebGLBoundary>
-            <Canvas shadows camera={{ position: [0, -220, 140], up: [0, 0, 1], fov: 45, near: 0.5, far: 6000 }}>
+            <Canvas shadows frameloop="demand" camera={{ position: [0, -220, 140], up: [0, 0, 1], fov: 45, near: 0.5, far: 6000 }}>
               <Scene terrain={terrain} />
             </Canvas>
           </WebGLBoundary>
@@ -169,7 +172,7 @@ export function Terrain3D() {
           </label>
           <span className="mono">{ex}×</span>
           <BodyLegend />
-          {outside && <span className="muted">· the active site is outside the ±180 km polar model; showing the pole for context</span>}
+          {outside && <span className="muted">{(label ?? 'The active site').split(' (')[0]} is far from the south pole, so this view shows the pole for context.</span>}
         </div>
       </div>
     </section>

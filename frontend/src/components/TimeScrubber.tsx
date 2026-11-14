@@ -16,13 +16,14 @@ export function TimeScrubber() {
 
   useEffect(() => {
     if (!playing) return;
-    let last = performance.now();
+    let last: number | null = null;
     let raf = 0;
     const loop = (now: number) => {
       const st = useStore.getState();
       if (!st.playing) return;
+      if (last === null) last = now;
       const end = maxDurationMs(st);
-      const next = st.offsetMs + ((now - last) / 1000) * st.speedHoursPerSec * HOUR_MS;
+      const next = st.offsetMs + (Math.min(now - last, 100) / 1000) * st.speedHoursPerSec * HOUR_MS;
       last = now;
       if (next >= end) { st.setOffset(end); st.setPlaying(false); return; }
       st.setOffset(next);
