@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AddScenario } from './components/AddScenario';
 import { ComparisonGrid } from './components/ComparisonGrid';
 import { Header } from './components/Header';
+import { HorizonPanorama } from './components/HorizonPanorama';
 import { ScenarioList } from './components/ScenarioList';
 import { DEFAULT_START, useStore } from './store';
 
@@ -28,7 +29,7 @@ export default function App() {
       </aside>
       <main className="main">
         <ComparisonGrid />
-        {/* Task 11/13: <div className="views"> <HorizonPanorama /> <Terrain3D /> </div> */}
+        <div className="views"><HorizonPanorama /></div>
         {/* Task 12: <TimelineGantt /> */}
       </main>
       {/* Task 12: <TimeScrubber /> */}
