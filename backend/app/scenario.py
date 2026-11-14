@@ -1,6 +1,7 @@
 """Combine ephemeris, terrain, DSN and power into one scenario result."""
 import json
 import logging
+import threading
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Literal
@@ -92,8 +93,13 @@ def warm_default_scenarios() -> int:
     return done
 
 
+# One computation at a time: a concurrent caller waits and then hits the cache, and peak RAM stays bounded (512 MB host).
+_compute_lock = threading.Lock()
+
+
 def compute_scenario(req: ScenarioRequest) -> dict:
-    return _compute(req.model_dump_json())
+    with _compute_lock:
+        return _compute(req.model_dump_json())
 
 
 def _r(a, nd=2):
