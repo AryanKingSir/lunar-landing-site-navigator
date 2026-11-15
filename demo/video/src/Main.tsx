@@ -197,6 +197,7 @@ function Share() {
               lunar-landing-site-navigator-pi.vercel.app
             </div>
             <div style={{ marginTop: 22, fontSize: 22, color: C.soft, ...rise(134) }}>NASA Space Apps Challenge 2026</div>
+            <div style={{ marginTop: 26, fontSize: 15, color: C.soft, opacity: 0.85 * rise(142).opacity }}>Narration and sound are AI-generated (ElevenLabs). All app footage is real.</div>
           </div>
         </div>
       )}

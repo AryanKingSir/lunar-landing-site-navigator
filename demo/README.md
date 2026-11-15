@@ -67,4 +67,4 @@ Other generated voices are in `assets/vo/`: bella reads the current script; alic
 >
 > Built for the NASA Space Apps Challenge 2026, "Lunar Landing Site Navigator".
 > Data: NASA LRO LOLA (LDEM 80 m south polar DEM), JPL DE440 ephemerides.
-> Voice and sound: ElevenLabs.
+> Narration and sound are AI-generated (ElevenLabs text-to-speech and sound effects). All app footage is real screen capture of the live site.
