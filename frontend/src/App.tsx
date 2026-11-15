@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { AddScenario } from './components/AddScenario';
 import { ComparisonGrid } from './components/ComparisonGrid';
 import { ExplainPanel } from './components/ExplainPanel';
 import { Header } from './components/Header';
 import { HorizonPanorama } from './components/HorizonPanorama';
-import { ScenarioList } from './components/ScenarioList';
 import { StatusBanner } from './components/StatusBanner';
+import { SiteChips } from './components/SiteChips';
 import { panelId, tabId, Tabs } from './components/Tabs';
 import { Terrain3D } from './components/Terrain3D';
 import { TimeBar } from './components/TimeBar';
@@ -61,13 +60,7 @@ export default function App() {
       <div className="page">
         <Header />
         <StatusBanner />
-        <section className="sites" aria-label="Your sites">
-          <ScenarioList />
-          <details className="add-site">
-            <summary>Add a site</summary>
-            <AddScenario />
-          </details>
-        </section>
+        <SiteChips />
         <Summary />
         {explain && <ExplainPanel />}
         <div>

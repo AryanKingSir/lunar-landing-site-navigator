@@ -18,6 +18,19 @@ export function loadTerrainMeta(): Promise<TerrainMeta> {
   return metaP;
 }
 
+/** Terrain metadata once loaded, else null. */
+export function useTerrainMeta(): TerrainMeta | null {
+  const [meta, setMeta] = useState<TerrainMeta | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadTerrainMeta()
+      .then((m) => { if (alive) setMeta(m); })
+      .catch((e) => console.error('Failed to load terrain meta', e));
+    return () => { alive = false; };
+  }, []);
+  return meta;
+}
+
 function loadTerrain(): Promise<Terrain> {
   if (!terrainP) {
     terrainP = Promise.all([
