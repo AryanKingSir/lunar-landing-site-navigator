@@ -85,7 +85,12 @@ export function HorizonPanorama() {
     const step = gridStep(y0, y1);
     const grid: number[] = [];
     for (let e = Math.ceil(y0 / step) * step; e <= y1; e += step) grid.push(e);
-    return { x, y, terrain, skyline, grid, sunPath: track(S.sun_az, S.sun_el, x, y), earthPath: track(S.earth_az, S.earth_el, x, y) };
+    const n = S.sun_az.length - 1;
+    const ends = {
+      start: { x: x(S.sun_az[0]), y: y(S.sun_el[0]) },
+      end: { x: x(S.sun_az[n]), y: y(S.sun_el[n]), day: Math.round((S.t[n] - S.t[0]) / 86_400_000) },
+    };
+    return { x, y, terrain, skyline, grid, ends, sunPath: track(S.sun_az, S.sun_el, x, y), earthPath: track(S.earth_az, S.earth_el, x, y) };
   }, [S, horizon, lat, zoom, W, H]);
 
   const heading = sc ? (
@@ -113,7 +118,7 @@ export function HorizonPanorama() {
 
   const r = sc.result;
   const i = indexAt(S.t, S.t[0] + offsetMs);
-  const { x, y, terrain, skyline, grid, sunPath, earthPath } = geo;
+  const { x, y, terrain, skyline, grid, ends, sunPath, earthPath } = geo;
   const sunVis = S.sun_frac[i] > 0;
   const earthVis = !!S.earth_vis[i];
   const sx = x(S.sun_az[i]), sy = y(S.sun_el[i]);
@@ -142,6 +147,12 @@ export function HorizonPanorama() {
           ))}
           <g clipPath={`url(#${clipId})`}>
             <path d={sunPath} className="path sun" />
+            <g className="path-end">
+              <circle cx={ends.start.x} cy={ends.start.y} r={3} />
+              <text x={ends.start.x + 6} y={ends.start.y - 8} textAnchor="start">Day 0</text>
+              <circle cx={ends.end.x} cy={ends.end.y} r={3} />
+              <text x={ends.end.x - 6} y={ends.end.y + 16} textAnchor="end">Day {ends.end.day}</text>
+            </g>
             <path d={earthPath} className="path earth" />
           </g>
           <path d={terrain} className="terrain" />
@@ -168,7 +179,7 @@ export function HorizonPanorama() {
       <ul className="sky-legend" aria-label="Legend">
         <li><span className="key dot sun" />Sun now</li>
         <li><span className="key dot earth" />Earth now</li>
-        <li><span className="key line" />Their paths over the whole period</li>
+        <li><span className="key line" />Their paths over the whole period (the Sun’s path runs from Day 0, landing day, to the last day)</li>
         <li><span className="key terrain" />Terrain</li>
       </ul>
       <p className="sky-caption num">
