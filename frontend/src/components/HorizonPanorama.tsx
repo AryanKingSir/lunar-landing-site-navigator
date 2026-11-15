@@ -1,9 +1,9 @@
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState, type CSSProperties } from 'react';
 import { linear } from '../lib/scale';
 import { indexAt } from '../lib/time';
 import { activeScenario, useStore } from '../store';
 
-const W = 1000, H = 300, PL = 40, PB = 22;
+const W = 1000, H = 370, PL = 44, PB = 26;
 const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'];
 
 function track(az: number[], el: number[], x: (v: number) => number, y: (v: number) => number): string {
@@ -21,6 +21,7 @@ export function HorizonPanorama() {
   const explain = useStore((s) => s.explain);
   const [zoom, setZoom] = useState<'auto' | 'horizon' | 'full'>('auto');
   const clipId = useId();
+  const skyId = useId();
   const S = sc?.result?.samples;
   const horizon = sc?.result?.horizon;
   const lat = sc?.lat;
@@ -46,7 +47,7 @@ export function HorizonPanorama() {
     };
   }, [S, horizon, lat, zoom]);
 
-  if (!sc?.result || !geo || !S) return <section className="panel"><h2>Horizon panorama</h2><p className="muted">Select a computed scenario.</p></section>;
+  if (!sc?.result || !geo || !S) return <section className="panel"><h2>Sky view</h2><p className="muted">{sc?.loading ? 'Working out the sky for this site.' : 'Pick a site to see its sky.'}</p></section>;
 
   const r = sc.result;
   const i = indexAt(S.t, S.t[0] + offsetMs);
@@ -54,40 +55,44 @@ export function HorizonPanorama() {
 
   return (
     <section className="panel">
-      <h2>Horizon panorama · <span style={{ color: sc.color }}>{sc.label}</span>
-        <span className="spacer" style={{ flex: 1 }} />
+      <h2><span className="tag" style={{ '--c': sc.color } as CSSProperties}>{sc.tag}</span>Sky from {sc.label}
+        <span className="spacer" />
         <select value={zoom} onChange={(e) => setZoom(e.target.value as typeof zoom)}>
           <option value="auto">Auto zoom</option><option value="horizon">Horizon (−3…12°)</option><option value="full">Full sky (−5…90°)</option>
         </select>
       </h2>
+      <div className="sky-window">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="360 degree horizon with Sun and Earth tracks">
         <defs>
-          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#05070b" /><stop offset="1" stopColor="#0c1420" /></linearGradient>
+          <linearGradient id={skyId} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--sky)" /><stop offset="0.7" stopColor="#0e121a" /><stop offset="1" stopColor="#171d28" /></linearGradient>
           <clipPath id={clipId}><rect x={PL} y={0} width={W - PL} height={H - PB} /></clipPath>
         </defs>
-        <rect x={PL} y={0} width={W - PL} height={H - PB} fill="url(#sky)" />
+        <rect x={PL} y={0} width={W - PL} height={H - PB} fill={`url(#${skyId})`} />
         {grid.map((e) => (
-          <g key={e}><line x1={PL} x2={W} y1={y(e)} y2={y(e)} stroke={e === 0 ? '#3a4658' : '#141c27'} strokeDasharray={e === 0 ? '' : '2 4'} />
-            <text x={PL - 4} y={Math.max(10, y(e) + 4)} textAnchor="end">{e}°</text></g>
+          <g key={e}><line x1={PL} x2={W} y1={y(e)} y2={y(e)} stroke={e === 0 ? 'var(--ink-soft)' : 'var(--hairline)'} strokeOpacity={e === 0 ? 0.5 : 1} strokeDasharray={e === 0 ? '' : '2 5'} />
+            <text x={PL - 6} y={Math.max(13, y(e) + 4)} textAnchor="end">{e}°</text></g>
         ))}
         <g clipPath={`url(#${clipId})`}>
-          <path d={sunPath} fill="none" stroke="var(--sun)" strokeOpacity={0.35} strokeWidth={1} />
-          <path d={earthPath} fill="none" stroke="var(--earth)" strokeOpacity={0.35} strokeWidth={1} />
+          <path d={sunPath} fill="none" stroke="var(--sun)" strokeOpacity={0.45} strokeWidth={1.25} />
+          <path d={earthPath} fill="none" stroke="var(--earth)" strokeOpacity={0.45} strokeWidth={1.25} />
         </g>
-        <path d={terrain} fill="#1b1f25" />
-        <path d={skyline} fill="none" stroke="#8a929e" strokeWidth={1} />
+        <path d={terrain} fill="#1c2027" />
+        <path d={skyline} fill="none" stroke="#a7aeb8" strokeWidth={1.25} />
         <g clipPath={`url(#${clipId})`}>
-          <circle cx={x(S.earth_az[i])} cy={y(S.earth_el[i])} r={7} fill="var(--earth)" stroke="#000" />
-          <circle cx={x(S.sun_az[i])} cy={y(S.sun_el[i])} r={6} fill="var(--sun)" stroke="#000" />
+          <circle cx={x(S.earth_az[i])} cy={y(S.earth_el[i])} r={16} fill="var(--earth)" opacity={0.16} />
+          <circle cx={x(S.earth_az[i])} cy={y(S.earth_el[i])} r={7} fill="var(--earth)" />
+          <circle cx={x(S.sun_az[i])} cy={y(S.sun_el[i])} r={18} fill="var(--sun)" opacity={0.18} />
+          <circle cx={x(S.sun_az[i])} cy={y(S.sun_el[i])} r={7} fill="var(--sun)" />
         </g>
-        {DIRS.map((d, k) => <text key={k} x={x(k * 45)} y={H - 6} textAnchor={k === 8 ? 'end' : 'middle'}>{d}</text>)}
+        {DIRS.map((d, k) => <text key={k} x={x(k * 45)} y={H - 8} textAnchor={k === 8 ? 'end' : 'middle'}>{d}</text>)}
       </svg>
-      <div className="mono muted" style={{ fontSize: 12 }}>
-        <span style={{ color: 'var(--sun)' }}>Sun</span> az {S.sun_az[i].toFixed(1)}° el {S.sun_el[i].toFixed(2)}° · {(S.sun_frac[i] * 100).toFixed(0)}% of disk visible · {S.power_w[i].toFixed(0)} W
-        {'  ·  '}<span style={{ color: 'var(--earth)' }}>Earth</span> az {S.earth_az[i].toFixed(1)}° el {S.earth_el[i].toFixed(2)}°
-        {'  ·  '}terrain: {r.terrain_source}
       </div>
-      {explain && <p className="muted" style={{ fontSize: 12 }}>
+      <div className="readout">
+        <span><span className="swatch" style={{ '--c': 'var(--sun)' } as CSSProperties} /><b>Sun</b> {S.sun_el[i].toFixed(2)}° high, bearing {S.sun_az[i].toFixed(0)}°, {(S.sun_frac[i] * 100).toFixed(0)}% of the disk visible, {S.power_w[i].toFixed(0)} W</span>
+        <span><span className="swatch" style={{ '--c': 'var(--earth)' } as CSSProperties} /><b>Earth</b> {S.earth_el[i].toFixed(2)}° high, bearing {S.earth_az[i].toFixed(0)}°</span>
+        <span>Terrain from {r.terrain_source}</span>
+      </div>
+      {explain && <p className="muted small" style={{ marginTop: 12 }}>
         The grey silhouette is the real skyline computed from LOLA laser altimetry, including the curvature of the Moon. Faint lines are
         the full Sun and Earth tracks over the period. At the south pole the Sun circles the whole horizon only a degree or two up, so a
         distant ridge can cast a shadow for days. Earth wobbles up and down each month because of libration.

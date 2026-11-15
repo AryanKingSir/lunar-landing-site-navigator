@@ -30,8 +30,7 @@ export function AddScenario() {
   };
 
   return (
-    <section className="panel">
-      <h2>Add scenario</h2>
+    <section className="panel" aria-label="Add a site">
       <div className="form">
         <label>Site
           <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
@@ -44,7 +43,7 @@ export function AddScenario() {
             <option value="custom">Custom coordinates…</option>
           </select>
         </label>
-        {site && <span className="muted" style={{ fontSize: 12 }}>{site.mission}. {site.description}</span>}
+        {site && <span className="muted small">{site.mission}. {site.description}</span>}
         {!site && (
           <div className="row">
             <label>Lat (°)<input type="number" step="0.001" value={lat} onChange={(e) => setLat(e.target.value)} /></label>

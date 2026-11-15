@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { dateLabel } from '../lib/format';
 import { SYNODIC_DAYS, useStore } from '../store';
 
 export function ScenarioList() {
@@ -23,30 +24,30 @@ export function ScenarioList() {
               }
             }}>
           <div className="card-head">
+            <span className="tag">{s.tag}</span>
             <b>{s.label}</b>
-            <button title="Remove" aria-label={`Remove ${s.label}`} onClick={(e) => { e.stopPropagation(); removeScenario(s.id); }}>×</button>
+            <button className="ghost" title="Same site, landing one lunation later" aria-label={`Slip ${s.label} +1 lunation`}
+                    onClick={(e) => { e.stopPropagation(); duplicateShifted(s.id, SYNODIC_DAYS); }}>
+              Slip +1 lunation
+            </button>
+            <button className="ghost" title="Remove" aria-label={`Remove ${s.label}`} onClick={(e) => { e.stopPropagation(); removeScenario(s.id); }}>×</button>
           </div>
-          <div className="muted mono">
-            {s.lat.toFixed(3)}°, {s.lon.toFixed(3)}° · {s.start.slice(0, 16).replace('T', ' ')} UTC · {s.days} d
+          <div className="meta">
+            Lands {dateLabel(s.start)}, {s.start.slice(11, 16)} UTC, for {s.days} {s.days === 1 ? 'day' : 'days'}
           </div>
-          {s.loading && <div className="muted">Computing… (the first request can take up to a minute while the server wakes)</div>}
+          <div className="meta">
+            {s.lat.toFixed(3)}°, {s.lon.toFixed(3)}°
+            {s.result && <span className={`badge ${s.result.terrain_source.startsWith('LOLA') ? 'terrain' : ''}`}>
+              . Terrain from {s.result.terrain_source}{s.result.terrain_partial ? ', far field partly covered' : ''}
+            </span>}
+          </div>
+          {s.loading && <div className="meta">Computing… (the first request can take up to a minute while the server wakes)</div>}
           {s.error && (
             <div className="error">
               {s.error}{' '}
               <button onClick={(e) => { e.stopPropagation(); void runScenario(s.id); }}>Try again</button>
             </div>
           )}
-          {s.result && (
-            <span className={`badge ${s.result.terrain_source.startsWith('LOLA') ? 'terrain' : ''}`}>
-              {s.result.terrain_source}{s.result.terrain_partial ? ' · partial far-field' : ''}
-            </span>
-          )}
-          <div style={{ marginTop: 6 }}>
-            <button title="Same site, landing one lunation later" aria-label={`Slip ${s.label} +1 lunation`}
-                    onClick={(e) => { e.stopPropagation(); duplicateShifted(s.id, SYNODIC_DAYS); }}>
-              Slip +1 lunation
-            </button>
-          </div>
         </li>
       ))}
     </ul>

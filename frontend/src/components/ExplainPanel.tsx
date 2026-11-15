@@ -32,7 +32,7 @@ export function ExplainPanel() {
   const step = STEPS[k];
   return (
     <section className="panel explain">
-      <h2>Why the south pole is hard · {k + 1}/{STEPS.length}</h2>
+      <h2>Why the south pole is hard <span className="muted small">Step {k + 1} of {STEPS.length}</span></h2>
       <h3 style={{ margin: '0 0 4px' }}>{step.title}</h3>
       <p style={{ margin: '0 0 8px' }}>{step.body}</p>
       <div className="steps">

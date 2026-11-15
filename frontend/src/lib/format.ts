@@ -22,3 +22,9 @@ export function pct(v: number): string {
   if (v > 99 && v < 100) return '>99%';
   return `${Math.round(v)}%`;
 }
+
+/** "13 Dec 2026, 14:05 UTC" for an epoch time in ms. */
+export function utcLabel(ms: number): string {
+  const d = new Date(ms);
+  return `${dateLabel(d.toISOString())}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+}

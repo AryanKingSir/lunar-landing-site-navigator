@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { dayLabel } from '../lib/format';
 import { formatDuration, HOUR_MS, indexAt, rangeEndOf, windowStatus } from '../lib/time';
 import { useStore, type Scenario } from '../store';
 import type { Metrics, Win } from '../types';
@@ -12,10 +13,10 @@ const ROWS: Row[] = [
     tip: 'Share of the period when at least a sliver of the Sun is above the horizon.' },
   { key: 'longest_dark_h', label: 'Longest night', fmt: (v) => formatDuration(v * HOUR_MS), better: 'low',
     tip: 'Longest continuous stretch without Sun: sets battery and heater sizing.' },
-  { key: 'earth_vis_pct', label: 'Earth above horizon', fmt: (v) => `${v.toFixed(1)}%`, better: 'high',
+  { key: 'earth_vis_pct', label: 'Earth in view', fmt: (v) => `${v.toFixed(1)}%`, better: 'high',
     tip: 'Share of time Earth’s disk centre is above the terrain. Required for direct-to-Earth radio.' },
-  { key: 'dte_pct', label: 'DTE window (Earth + DSN)', fmt: (v) => `${v.toFixed(1)}%`, better: 'high',
-    tip: 'Earth visible AND a Deep Space Network antenna (Goldstone/Madrid/Canberra) sees the Moon ≥10°.' },
+  { key: 'dte_pct', label: 'Radio link to Earth', fmt: (v) => `${v.toFixed(1)}%`, better: 'high',
+    tip: 'Direct-to-Earth (DTE): Earth is visible and a Deep Space Network antenna (Goldstone, Madrid or Canberra) sees the Moon at least 10° up.' },
   { key: 'mean_power_w', label: 'Mean array power (1 m², 30%)', fmt: (v) => `${v.toFixed(0)} W`, better: 'high',
     tip: 'No atmosphere: flux is ~1361 W/m², limited only by Sun angle and terrain.' },
   { key: 'energy_wh', label: 'Energy over period', fmt: (v) => `${(v / 1000).toFixed(1)} kWh`, better: 'high',
@@ -33,7 +34,7 @@ function status(sc: Scenario, offsetMs: number, windows: Win[], up: string, down
   const t = sc.result!.samples.t;
   const st = windowStatus(windows, t[0] + offsetMs, rangeEndOf(t));
   const when = `${st.openEnded && st.inWindow ? '≥ ' : ''}${formatDuration(st.msUntilChange)}`;
-  return st.inWindow ? `${up} · ends in ${when}` : st.msUntilChange === null ? `${down} · none in period` : `${down} · starts in ${when}`;
+  return st.inWindow ? `${up}, ends in ${when}` : st.msUntilChange === null ? `${down}, none in this period` : `${down}, starts in ${when}`;
 }
 
 export function ComparisonGrid() {
@@ -41,28 +42,29 @@ export function ComparisonGrid() {
   const offsetMs = useStore((s) => s.offsetMs);
   const explain = useStore((s) => s.explain);
   const ready = scenarios.filter((s) => s.result);
-  if (ready.length === 0) return <section className="panel"><h2>Comparison</h2><p className="muted">Waiting for results…</p></section>;
+  if (ready.length === 0) return <section className="panel"><h2>All numbers</h2><p className="muted">Working out the numbers for your sites.</p></section>;
   return (
     <section className="panel">
-      <h2>Comparison <span className="muted">· at T+{offsetMs === 0 ? '0' : formatDuration(offsetMs)}</span></h2>
+      <h2>All numbers at {dayLabel(offsetMs)}</h2>
+      <div className="table-scroll">
       <table className="compare">
         <thead>
-          <tr><th />{ready.map((s) => <th key={s.id} style={{ color: s.color } as CSSProperties}>{s.label}</th>)}</tr>
+          <tr><th />{ready.map((s) => <th key={s.id}><span className="tag" style={{ '--c': s.color } as CSSProperties}>{s.tag}</span>{s.label}</th>)}</tr>
         </thead>
         <tbody>
-          <tr><td>Sun now</td>{ready.map((s) => {
+          <tr><td><span className="swatch" style={{ '--c': 'var(--sun)' } as CSSProperties} />Sunlight now</td>{ready.map((s) => {
             const i = indexAt(s.result!.samples.t, s.result!.samples.t[0] + offsetMs);
-            return <td key={s.id} className="mono" style={{ color: 'var(--sun)' }}>
-              {s.result!.samples.sun_el[i].toFixed(2)}° · {(s.result!.samples.sun_frac[i] * 100).toFixed(0)}% disk<br />
-              {status(s, offsetMs, s.result!.windows.sun, 'up', 'down')}</td>;
+            return <td key={s.id}>
+              {s.result!.samples.sun_el[i].toFixed(2)}° high, {(s.result!.samples.sun_frac[i] * 100).toFixed(0)}% of the disk
+              <span className="cell-sub">{status(s, offsetMs, s.result!.windows.sun, 'Up', 'Down')}</span></td>;
           })}</tr>
-          <tr><td>Earth now</td>{ready.map((s) => {
+          <tr><td><span className="swatch" style={{ '--c': 'var(--earth)' } as CSSProperties} />Earth in view now</td>{ready.map((s) => {
             const i = indexAt(s.result!.samples.t, s.result!.samples.t[0] + offsetMs);
-            return <td key={s.id} className="mono" style={{ color: 'var(--earth)' }}>
-              {s.result!.samples.earth_el[i].toFixed(2)}°<br />{status(s, offsetMs, s.result!.windows.earth, 'visible', 'hidden')}</td>;
+            return <td key={s.id}>
+              {s.result!.samples.earth_el[i].toFixed(2)}° high<span className="cell-sub">{status(s, offsetMs, s.result!.windows.earth, 'In view', 'Hidden')}</span></td>;
           })}</tr>
-          <tr><td>DTE link now</td>{ready.map((s) => (
-            <td key={s.id} className="mono" style={{ color: 'var(--dte)' }}>{status(s, offsetMs, s.result!.windows.dte, 'link', 'no link')}</td>
+          <tr><td title="Direct-to-Earth (DTE)"><span className="swatch" style={{ '--c': 'var(--link)' } as CSSProperties} />Radio link to Earth now</td>{ready.map((s) => (
+            <td key={s.id}>{status(s, offsetMs, s.result!.windows.dte, 'Linked', 'No link')}</td>
           ))}</tr>
           {ROWS.map((r) => {
             const vals = ready.map((s) => s.result!.metrics[r.key]);
@@ -70,12 +72,13 @@ export function ComparisonGrid() {
             return (
               <tr key={r.key} title={r.tip}>
                 <td>{r.label}{explain && <span className="explain-note">{r.tip}</span>}</td>
-                {ready.map((s, i) => <td key={s.id} className={`mono ${b !== null && vals[i] === b ? 'best' : ''}`}>{r.fmt(vals[i])}</td>)}
+                {ready.map((s, i) => <td key={s.id} className={b !== null && vals[i] === b ? 'best' : undefined}>{r.fmt(vals[i])}</td>)}
               </tr>
             );
           })}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }
