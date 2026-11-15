@@ -1,12 +1,14 @@
-import { StageSkeleton } from './Skeleton';
-import { useId, useMemo, useState, type CSSProperties } from 'react';
-import { placeName } from '../lib/format';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { dayLabel, placeName } from '../lib/format';
 import { linear } from '../lib/scale';
+import { gridStep, skyRange, type SkyZoom } from '../lib/skyRange';
 import { indexAt } from '../lib/time';
 import { activeScenario, useStore } from '../store';
+import { StageSkeleton } from './Skeleton';
 
-const W = 1000, H = 370, PL = 44, PB = 26;
+const PL = 40, PB = 26, PT = 8;
 const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'];
+const MIN_H = 260, MAX_H = 460, BELOW = 150; // BELOW: caption + time bar + breathing room
 
 function track(az: number[], el: number[], x: (v: number) => number, y: (v: number) => number): string {
   let d = '';
@@ -17,42 +19,93 @@ function track(az: number[], el: number[], x: (v: number) => number, y: (v: numb
   return d;
 }
 
+/** Width from the element, height from the space left above the pinned time bar. */
+function useWindowSize(scenarioCount: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 1000, h: 380 });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const h = Math.round(Math.min(MAX_H, Math.max(MIN_H, window.innerHeight - top - BELOW)));
+      setSize({ w: Math.round(el.clientWidth), h });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [scenarioCount]);
+  return { ref, ...size };
+}
+
+function sunWords(el: number, frac: number): string {
+  const up = `${Math.abs(el).toFixed(1)}°`;
+  if (el < 0 && frac <= 0) return `the Sun is ${up} below the level horizon`;
+  if (frac <= 0) return `the Sun is ${up} up but hidden behind the terrain`;
+  if (frac < 0.995) return `the Sun is ${up} up and partly visible (${Math.round(frac * 100)}% of its disk)`;
+  return `the Sun is ${up} ${el < 0 ? 'below the level horizon but' : 'up and'} fully visible`;
+}
+
+function earthWords(el: number, vis: boolean): string {
+  const up = `${Math.abs(el).toFixed(1)}°`;
+  if (vis) return `Earth is ${up} ${el < 0 ? 'below the level horizon but in view' : 'up and in view'}.`;
+  if (el < 0) return `Earth is ${up} below the level horizon.`;
+  return `Earth is ${up} up but hidden behind the terrain.`;
+}
+
 export function HorizonPanorama() {
   const sc = useStore(activeScenario);
+  const count = useStore((s) => s.scenarios.length);
   const offsetMs = useStore((s) => s.offsetMs);
-  const explain = useStore((s) => s.explain);
-  const [zoom, setZoom] = useState<'auto' | 'horizon' | 'full'>('auto');
+  const [zoom, setZoom] = useState<SkyZoom>('fit');
   const clipId = useId();
-  const skyId = useId();
+  const { ref, w: W, h: H } = useWindowSize(count);
   const S = sc?.result?.samples;
   const horizon = sc?.result?.horizon;
   const lat = sc?.lat;
 
+  // Re-measure once results arrive (the stage skeleton has a different height).
+  const ready = !!S;
+  useEffect(() => { window.dispatchEvent(new Event('resize')); }, [ready]);
+
   const geo = useMemo(() => {
     if (!S || !horizon || lat === undefined) return null;
     const polar = lat <= -75 || lat >= 75;
-    const [y0, y1] = zoom === 'full' || (zoom === 'auto' && !polar) ? [-5, 90] : [-3, 12];
+    const [y0, y1] = skyRange(zoom, polar, horizon.el, S.sun_el, S.earth_el);
     const x = linear(0, 360, PL, W);
-    const y = linear(y0, y1, H - PB, 0);
+    const y = linear(y0, y1, H - PB, PT);
     const clampY = (v: number) => y(Math.max(y0, Math.min(y1, v)));
     const sky = horizon.az.map((a, k) => `L${x(a).toFixed(1)},${clampY(horizon.el[k]).toFixed(1)}`).join(' ')
       + ` L${x(360)},${clampY(horizon.el[0]).toFixed(1)}`;
     const terrain = `M${x(0)},${H - PB} ${sky} L${x(360)},${H - PB} Z`;
     const skyline = `M${x(0)},${clampY(horizon.el[0]).toFixed(1)} ${sky}`;
-    const step = y1 - y0 > 30 ? 15 : 2;
+    const step = gridStep(y0, y1);
     const grid: number[] = [];
     for (let e = Math.ceil(y0 / step) * step; e <= y1; e += step) grid.push(e);
-    return {
-      x, y, terrain, skyline, grid,
-      sunPath: track(S.sun_az, S.sun_el, x, y),
-      earthPath: track(S.earth_az, S.earth_el, x, y),
-    };
-  }, [S, horizon, lat, zoom]);
+    return { x, y, terrain, skyline, grid, sunPath: track(S.sun_az, S.sun_el, x, y), earthPath: track(S.earth_az, S.earth_el, x, y) };
+  }, [S, horizon, lat, zoom, W, H]);
+
+  const heading = sc ? (
+    <h2>
+      <span className="tag" style={{ '--c': sc.color } as CSSProperties}>{sc.tag}</span>Sky from {placeName(sc.label)}
+      <span className="spacer" />
+      <label className="sky-zoom"><span className="sr-only">Sky range</span>
+        <select value={zoom} onChange={(e) => setZoom(e.target.value as SkyZoom)}>
+          <option value="fit">Fit</option><option value="horizon">Near the horizon</option><option value="full">Whole sky</option>
+        </select>
+      </label>
+    </h2>
+  ) : <h2>Sky view</h2>;
 
   if (!sc?.result || !geo || !S) {
     return (
-      <section className="panel"><h2>Sky view</h2>
-        {sc && !sc.error ? <StageSkeleton label="Working out the sky for this site." /> : <p className="muted">{sc?.error ? 'The sky for this site could not be worked out.' : 'Pick a site to see its sky.'}</p>}
+      <section className="panel">{heading}
+        <div ref={ref}>
+          {sc && !sc.error ? <StageSkeleton label="Working out the sky for this site." />
+            : <p className="muted">{sc?.error ? 'The sky for this site could not be worked out.' : 'Pick a site to see its sky.'}</p>}
+        </div>
       </section>
     );
   }
@@ -60,51 +113,62 @@ export function HorizonPanorama() {
   const r = sc.result;
   const i = indexAt(S.t, S.t[0] + offsetMs);
   const { x, y, terrain, skyline, grid, sunPath, earthPath } = geo;
+  const sunVis = S.sun_frac[i] > 0;
+  const earthVis = !!S.earth_vis[i];
+  const sx = x(S.sun_az[i]), sy = y(S.sun_el[i]);
+  const ex = x(S.earth_az[i]), ey = y(S.earth_el[i]);
+  const flip = (px: number) => px > W - 170;
 
   return (
     <section className="panel">
-      <h2><span className="tag" style={{ '--c': sc.color } as CSSProperties}>{sc.tag}</span>Sky from {placeName(sc.label)}
-        <span className="spacer" />
-        <select value={zoom} onChange={(e) => setZoom(e.target.value as typeof zoom)}>
-          <option value="auto">Auto zoom</option><option value="horizon">Horizon (−3…12°)</option><option value="full">Full sky (−5…90°)</option>
-        </select>
-      </h2>
-      <div className="sky-window">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="360 degree horizon with Sun and Earth tracks">
-        <defs>
-          <linearGradient id={skyId} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--sky)" /><stop offset="0.7" stopColor="#0e121a" /><stop offset="1" stopColor="#171d28" /></linearGradient>
-          <clipPath id={clipId}><rect x={PL} y={0} width={W - PL} height={H - PB} /></clipPath>
-        </defs>
-        <rect x={PL} y={0} width={W - PL} height={H - PB} fill={`url(#${skyId})`} />
-        {grid.map((e) => (
-          <g key={e}><line x1={PL} x2={W} y1={y(e)} y2={y(e)} stroke={e === 0 ? 'var(--ink-soft)' : 'var(--hairline)'} strokeOpacity={e === 0 ? 0.5 : 1} strokeDasharray={e === 0 ? '' : '2 5'} />
-            <text x={PL - 6} y={Math.max(13, y(e) + 4)} textAnchor="end">{e}°</text></g>
-        ))}
-        <g clipPath={`url(#${clipId})`}>
-          <path d={sunPath} fill="none" stroke="var(--sun)" strokeOpacity={0.45} strokeWidth={1.25} />
-          <path d={earthPath} fill="none" stroke="var(--earth)" strokeOpacity={0.45} strokeWidth={1.25} />
-        </g>
-        <path d={terrain} fill="#1c2027" />
-        <path d={skyline} fill="none" stroke="#a7aeb8" strokeWidth={1.25} />
-        <g clipPath={`url(#${clipId})`}>
-          <circle cx={x(S.earth_az[i])} cy={y(S.earth_el[i])} r={16} fill="var(--earth)" opacity={0.16} />
-          <circle cx={x(S.earth_az[i])} cy={y(S.earth_el[i])} r={7} fill="var(--earth)" />
-          <circle cx={x(S.sun_az[i])} cy={y(S.sun_el[i])} r={18} fill="var(--sun)" opacity={0.18} />
-          <circle cx={x(S.sun_az[i])} cy={y(S.sun_el[i])} r={7} fill="var(--sun)" />
-        </g>
-        {DIRS.map((d, k) => <text key={k} x={x(k * 45)} y={H - 8} textAnchor={k === 8 ? 'end' : 'middle'}>{d}</text>)}
-      </svg>
+      {heading}
+      <div className="sky-window pano" ref={ref} style={{ height: H }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img"
+             aria-label={`Skyline all around ${placeName(sc.label)}, with the paths of the Sun and Earth`}>
+          <defs><clipPath id={clipId}><rect x={PL} y={0} width={W - PL} height={H - PB} /></clipPath></defs>
+          {grid.map((e) => (
+            <g key={e}>
+              <line x1={PL} x2={W} y1={y(e)} y2={y(e)} className={e === 0 ? 'grid zero' : 'grid'} />
+              <text x={PL - 6} y={Math.max(14, y(e) + 4)} textAnchor="end" className="axis">{e}°</text>
+            </g>
+          ))}
+          <g clipPath={`url(#${clipId})`}>
+            <path d={sunPath} className="path sun" />
+            <path d={earthPath} className="path earth" />
+          </g>
+          <path d={terrain} className="terrain" />
+          <path d={skyline} className="skyline" />
+          <g clipPath={`url(#${clipId})`}>
+            <g className={`body earth ${earthVis ? '' : 'hidden'}`}>
+              <circle cx={ex} cy={ey} r={13} className="halo" />
+              <circle cx={ex} cy={ey} r={7.5} className="dot" />
+              <text x={flip(ex) ? ex - 14 : ex + 14} y={ey + 4} textAnchor={flip(ex) ? 'end' : 'start'} className="label">
+                Earth{earthVis ? '' : ' (behind terrain)'}
+              </text>
+            </g>
+            <g className={`body sun ${sunVis ? '' : 'hidden'}`}>
+              <circle cx={sx} cy={sy} r={15} className="halo" />
+              <circle cx={sx} cy={sy} r={7.5} className="dot" />
+              <text x={flip(sx) ? sx - 16 : sx + 16} y={sy - 8} textAnchor={flip(sx) ? 'end' : 'start'} className="label">
+                Sun{sunVis ? '' : ' (hidden)'}
+              </text>
+            </g>
+          </g>
+          {DIRS.map((d, k) => <text key={k} x={x(k * 45)} y={H - 8} textAnchor={k === 0 ? 'start' : k === 8 ? 'end' : 'middle'} className="compass">{d}</text>)}
+        </svg>
+        <ul className="sky-legend" aria-label="Legend">
+          <li><span className="key dot sun" />Sun now</li>
+          <li><span className="key dot earth" />Earth now</li>
+          <li><span className="key line" />Their paths over the whole period</li>
+          <li><span className="key terrain" />Terrain</li>
+        </ul>
       </div>
-      <div className="readout">
-        <span><span className="swatch" style={{ '--c': 'var(--sun)' } as CSSProperties} /><b>Sun</b> {S.sun_el[i].toFixed(2)}° high, bearing {S.sun_az[i].toFixed(0)}°, {(S.sun_frac[i] * 100).toFixed(0)}% of the disk visible, {S.power_w[i].toFixed(0)} W</span>
-        <span><span className="swatch" style={{ '--c': 'var(--earth)' } as CSSProperties} /><b>Earth</b> {S.earth_el[i].toFixed(2)}° high, bearing {S.earth_az[i].toFixed(0)}°</span>
-        <span>Terrain from {r.terrain_source}</span>
-      </div>
-      {explain && <p className="muted small" style={{ marginTop: 12 }}>
-        The grey silhouette is the real skyline computed from LOLA laser altimetry, including the curvature of the Moon. Faint lines are
-        the full Sun and Earth tracks over the period. At the south pole the Sun circles the whole horizon only a degree or two up, so a
-        distant ridge can cast a shadow for days. Earth wobbles up and down each month because of libration.
-      </p>}
+      <p className="sky-caption num">
+        At {dayLabel(offsetMs)}, {sunWords(S.sun_el[i], S.sun_frac[i])}. {earthWords(S.earth_el[i], earthVis)}
+      </p>
+      <p className="sky-source">
+        Power from a 1 m² panel right now: <span className="num">{S.power_w[i].toFixed(0)} W</span>. Terrain from {r.terrain_source}.
+      </p>
     </section>
   );
 }

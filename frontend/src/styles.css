@@ -14,6 +14,7 @@
 .sky-window {
   --sun: #f0a52a; --earth: #62aee8; --link: #74c39c; --ink: #e6e8ec; --ink-soft: #9aa3ae; --hairline: #2a3038;
   --surface: #161a21; --edge: #3a414b;
+  --terrain: #262b33; --skyline: #d3d8df; --grid: #1f242c;
   color-scheme: dark;
   background: var(--sky); color: var(--ink); border-radius: 8px; overflow: hidden; position: relative;
 }
@@ -260,6 +261,39 @@ a { color: var(--link); text-underline-offset: 3px; }
 .view-note { font-size: var(--fs-small); color: var(--ink-soft); margin: -6px 0 12px; max-width: 70ch; }
 
 .sky-window svg { display: block; }
+.pano { width: 100%; }
+.pano .grid { stroke: var(--grid); stroke-dasharray: 2 6; }
+.pano .grid.zero { stroke: var(--ink-soft); stroke-opacity: 0.55; stroke-dasharray: none; }
+.pano text.axis, .pano text.compass { font-size: 12px; fill: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.pano text.compass { fill: var(--ink); font-weight: 600; }
+.pano .path { fill: none; stroke-width: 1.5; stroke-opacity: 0.55; }
+.pano .path.sun { stroke: var(--sun); }
+.pano .path.earth { stroke: var(--earth); }
+.pano .terrain { fill: var(--terrain); }
+.pano .skyline { fill: none; stroke: var(--skyline); stroke-width: 1.5; }
+.pano .body .dot { stroke: var(--sky); stroke-width: 2.5; }
+.pano .body .halo { opacity: 0.2; }
+.pano .body.sun .dot, .pano .body.sun .halo { fill: var(--sun); }
+.pano .body.earth .dot, .pano .body.earth .halo { fill: var(--earth); }
+.pano .body .label { font-size: 13px; font-weight: 700; fill: var(--ink); stroke: var(--sky); stroke-width: 4px; paint-order: stroke; stroke-linejoin: round; }
+.pano .body.hidden .halo { display: none; }
+.pano .body.hidden .dot { fill: var(--sky); stroke-width: 2.5; }
+.pano .body.sun.hidden .dot { stroke: var(--sun); }
+.pano .body.earth.hidden .dot { stroke: var(--earth); }
+.pano .body.hidden .label { font-weight: 400; fill: var(--ink-soft); }
+.sky-legend { position: absolute; top: 10px; right: 12px; margin: 0; padding: 8px 12px; list-style: none; display: grid; gap: 4px;
+  font-size: 12px; color: var(--ink-soft); background: color-mix(in srgb, var(--sky) 82%, transparent); border-radius: 6px; }
+.sky-legend li { display: flex; align-items: center; gap: 8px; }
+.sky-legend .key { display: inline-block; flex: none; }
+.sky-legend .key.dot { width: 10px; height: 10px; border-radius: 50%; }
+.sky-legend .key.dot.sun { background: var(--sun); }
+.sky-legend .key.dot.earth { background: var(--earth); }
+.sky-legend .key.line { width: 16px; height: 0; border-top: 2px solid var(--ink-soft); opacity: 0.8; }
+.sky-legend .key.terrain { width: 16px; height: 10px; background: var(--terrain); border-top: 2px solid var(--skyline); }
+.sky-caption { margin: 12px 0 0; max-width: 80ch; }
+.sky-source { margin: 4px 0 0; font-size: var(--fs-small); color: var(--ink-soft); max-width: 80ch; }
+.sky-zoom select { font-size: var(--fs-small); font-weight: 400; }
+@media (max-width: 720px) { .sky-legend { position: static; margin: 0; border-radius: 0; grid-template-columns: 1fr 1fr; } }
 svg text { font-family: var(--font); font-size: 13px; fill: var(--ink-soft); }
 svg text.halo { stroke: var(--page); stroke-width: 5px; stroke-linejoin: round; paint-order: stroke; }
 .readout { display: flex; flex-wrap: wrap; gap: 4px 24px; margin-top: 12px; font-size: var(--fs-small); color: var(--ink-soft); }
