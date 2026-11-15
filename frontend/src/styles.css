@@ -450,3 +450,8 @@ table.compare .col-head { display: flex; align-items: center; gap: 8px; font-wei
 table.compare .csv { margin-top: 6px; min-height: 36px; padding: 4px 10px; font-size: var(--fs-small); }
 table.compare td .most { margin-left: 8px; }
 .numbers table.compare th, .numbers table.compare td { text-align: left; }
+@media (max-width: 720px) {
+  .tour { bottom: 184px; max-height: 40vh; left: 8px; right: 8px; }
+  .tour-head { padding: 10px 12px 6px; }
+  .tour-list { padding: 10px 12px; }
+}
