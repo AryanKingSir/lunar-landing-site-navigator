@@ -11,4 +11,9 @@ describe('bestFlags', () => {
     expect(bestFlags([undefined, 30])).toEqual([false, false]);
     expect(bestFlags([undefined, 30, 60])).toEqual([false, false, true]);
   });
+  it('compares values the way they are displayed', () => {
+    expect(bestFlags([0.4, 0.6])).toEqual([false, false]);
+    expect(bestFlags([0, 0.4])).toEqual([false, true]);
+    expect(bestFlags([99.6, 100])).toEqual([false, true]);
+  });
 });

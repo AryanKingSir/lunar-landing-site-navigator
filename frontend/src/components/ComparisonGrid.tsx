@@ -43,7 +43,12 @@ export function ComparisonGrid() {
   const offsetMs = useStore((s) => s.offsetMs);
   const explain = useStore((s) => s.explain);
   const ready = scenarios.filter((s) => s.result);
-  if (ready.length === 0) return <section className="panel"><h2>All numbers</h2><StageSkeleton label="Working out the numbers for your sites." /></section>;
+  if (ready.length === 0) {
+    const anyLoading = scenarios.some((s) => s.loading);
+    return <section className="panel"><h2>All numbers</h2>{anyLoading
+      ? <StageSkeleton label="Working out the numbers for your sites." />
+      : <p className="muted" role="status">No results to show. Use Try again on a site chip.</p>}</section>;
+  }
   return (
     <section className="panel">
       <h2>All numbers at {dayLabel(offsetMs)}</h2>

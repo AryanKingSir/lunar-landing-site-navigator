@@ -38,40 +38,42 @@ export function SummaryStrip() {
         const name = placeName(sc.label);
         const failed = !!sc.error && !sc.loading;
         return (
-          <button key={sc.id} className={`sum-col ${sc.id === activeId ? 'active' : ''}`} style={{ '--c': sc.color } as CSSProperties}
-                  aria-pressed={sc.id === activeId} aria-label={`Show ${name}, site ${sc.tag}`} onClick={() => setActive(sc.id)}>
+          <section key={sc.id} className={`sum-col ${sc.id === activeId ? 'active' : ''}`} style={{ '--c': sc.color } as CSSProperties}
+                   aria-label={`Site ${sc.tag}, ${name}`}>
+            <button type="button" className="sum-hit" aria-pressed={sc.id === activeId}
+                    aria-label={`Show ${name} in the views below`} onClick={() => setActive(sc.id)} />
             {sum ? (
               <>
-                <span className="sum-top">
-                <span className="sum-head">
+                <div className="sum-top">
+                <div className="sum-head">
                   <span className="tag">{sc.tag}</span>
                   <span className="sum-id">
                     <span className="sum-name">{name}</span>
                     {showDates && <span className="sum-date num">{dateLabel(sc.start)}</span>}
                   </span>
-                </span>
+                </div>
                 <dl className="sum-figs">
                   {ROWS.map((r, ri) => (
-                    <div key={r.key} className="sum-fig" title={r.tip}>
-                      <dt>{r.label}</dt>
-                      <dd className="num">{pct(sum[r.key])}{best[ri][i] && <span className="most">most</span>}</dd>
+                    <div key={r.key} className="sum-fig">
+                      <dt>{r.tip ? <abbr title={r.tip} tabIndex={0}>{r.label}</abbr> : r.label}</dt>
+                      <dd className="num">{pct(sum[r.key])}{best[ri][i] && <span className="most">most<span className="sr-only"> ({r.label}: highest of the sites shown)</span></span>}</dd>
                     </div>
                   ))}
                 </dl>
-                </span>
-                <span className="sum-sentence">{sum.sentence}</span>
+                </div>
+                <p className="sum-sentence">{sum.sentence}</p>
               </>
             ) : (
               <>
-                <span className="sum-head">
+                <div className="sum-head">
                   <span className="tag">{sc.tag}</span>
                   <span className="sum-id">
                     <span className="sum-name">{name}</span>
                     {showDates && <span className="sum-date num">{dateLabel(sc.start)}</span>}
                   </span>
-                </span>
+                </div>
                 {failed ? (
-                  <span className="sum-sentence error">Could not work this out. Use Try again on the site chip.</span>
+                  <p className="sum-sentence error">Could not work this out. Use Try again on the site chip.</p>
                 ) : (
               <span className="sum-skel" role="status">
                 <span className="sr-only">Working out {name}</span>
@@ -81,7 +83,7 @@ export function SummaryStrip() {
                 )}
               </>
             )}
-          </button>
+          </section>
         );
       })}
     </section>
