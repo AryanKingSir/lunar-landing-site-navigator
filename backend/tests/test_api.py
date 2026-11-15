@@ -49,3 +49,9 @@ def test_thirty_day_response_is_compact():
     d = c.post("/api/scenario", json=body).json()
     assert len(gzip.compress(json.dumps(d).encode())) < 100_000
     assert len(d["samples"]["sun_vec"][0]) == 3
+
+
+def test_health_answers_head_for_uptime_monitors():
+    c = _client()
+    assert c.head("/api/health").status_code == 200
+    assert c.get("/api/health").json() == {"status": "ok"}

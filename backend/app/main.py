@@ -27,7 +27,7 @@ app.add_middleware(
 )
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])  # HEAD: uptime monitors such as UptimeRobot
 async def health() -> dict:
     return {"status": "ok"}
 
