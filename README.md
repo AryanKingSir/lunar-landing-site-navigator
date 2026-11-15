@@ -97,7 +97,7 @@ npx vitest run       # tests
 
 ## Use of AI
 
-- **Code and docs:** our team set the requirements, made the design decisions and tested the app. Most of the code and documentation was written with Anthropic's Claude (Claude Code) as a coding assistant; those commits carry `Co-Authored-By: Claude`. Results were checked against NASA JPL Horizons and published values (see [docs/methodology.md](docs/methodology.md)).
+- **Code and docs:** our team set the requirements, made the design decisions and tested the app. Most of the code and documentation was written with Anthropic's Claude (Claude Code) as a coding assistant; the repository is tagged with the `ai-assisted` topic. Results were checked against NASA JPL Horizons and published values (see [docs/methodology.md](docs/methodology.md)).
 - **Demo video:** the narration and sound are AI-generated with ElevenLabs. The app footage is real screen capture of the live site.
 
 ## Licence
