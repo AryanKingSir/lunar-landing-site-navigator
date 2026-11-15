@@ -8,7 +8,7 @@ import { StageSkeleton } from './Skeleton';
 
 const PL = 40, PB = 26, PT = 8;
 const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'];
-const MIN_H = 260, MAX_H = 460, BELOW = 150; // BELOW: caption + time bar + breathing room
+const MIN_H = 280, MAX_H = 520, BELOW = 200; // BELOW: legend + caption + time bar under the chart
 
 function track(az: number[], el: number[], x: (v: number) => number, y: (v: number) => number): string {
   let d = '';
@@ -61,6 +61,7 @@ export function HorizonPanorama() {
   const offsetMs = useStore((s) => s.offsetMs);
   const [zoom, setZoom] = useState<SkyZoom>('fit');
   const clipId = useId();
+  const glowId = useId();
   const { ref, w: W, h: H } = useWindowSize(count);
   const S = sc?.result?.samples;
   const horizon = sc?.result?.horizon;
@@ -125,7 +126,14 @@ export function HorizonPanorama() {
       <div className="sky-window pano" ref={ref} style={{ height: H }}>
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img"
              aria-label={`Skyline all around ${placeName(sc.label)}, with the paths of the Sun and Earth`}>
-          <defs><clipPath id={clipId}><rect x={PL} y={0} width={W - PL} height={H - PB} /></clipPath></defs>
+          <defs>
+            <clipPath id={clipId}><rect x={PL} y={0} width={W - PL} height={H - PB} /></clipPath>
+            <radialGradient id={glowId}>
+              <stop offset="0" stopColor="var(--sun)" stopOpacity="0.75" />
+              <stop offset="0.35" stopColor="var(--sun)" stopOpacity="0.28" />
+              <stop offset="1" stopColor="var(--sun)" stopOpacity="0" />
+            </radialGradient>
+          </defs>
           {grid.map((e) => (
             <g key={e}>
               <line x1={PL} x2={W} y1={y(e)} y2={y(e)} className={e === 0 ? 'grid zero' : 'grid'} />
@@ -140,29 +148,29 @@ export function HorizonPanorama() {
           <path d={skyline} className="skyline" />
           <g clipPath={`url(#${clipId})`}>
             <g className={`body earth ${earthVis ? '' : 'hidden'}`}>
-              <circle cx={ex} cy={ey} r={13} className="halo" />
-              <circle cx={ex} cy={ey} r={7.5} className="dot" />
-              <text x={flip(ex) ? ex - 14 : ex + 14} y={ey + 4} textAnchor={flip(ex) ? 'end' : 'start'} className="label">
+              <circle cx={ex} cy={ey} r={15} className="halo" />
+              <circle cx={ex} cy={ey} r={9} className="dot" />
+              <text x={flip(ex) ? ex - 16 : ex + 16} y={ey + 4} textAnchor={flip(ex) ? 'end' : 'start'} className="label">
                 Earth{earthVis ? '' : ' (behind terrain)'}
               </text>
             </g>
             <g className={`body sun ${sunVis ? '' : 'hidden'}`}>
-              <circle cx={sx} cy={sy} r={15} className="halo" />
-              <circle cx={sx} cy={sy} r={7.5} className="dot" />
-              <text x={flip(sx) ? sx - 16 : sx + 16} y={sy - 8} textAnchor={flip(sx) ? 'end' : 'start'} className="label">
+              {sunVis && <circle cx={sx} cy={sy} r={34} fill={`url(#${glowId})`} className="glow" />}
+              <circle cx={sx} cy={sy} r={9} className="dot" />
+              <text x={flip(sx) ? sx - 20 : sx + 20} y={sy - 8} textAnchor={flip(sx) ? 'end' : 'start'} className="label">
                 Sun{sunVis ? '' : ' (hidden)'}
               </text>
             </g>
           </g>
           {DIRS.map((d, k) => <text key={k} x={x(k * 45)} y={H - 8} textAnchor={k === 0 ? 'start' : k === 8 ? 'end' : 'middle'} className="compass">{d}</text>)}
         </svg>
-        <ul className="sky-legend" aria-label="Legend">
-          <li><span className="key dot sun" />Sun now</li>
-          <li><span className="key dot earth" />Earth now</li>
-          <li><span className="key line" />Their paths over the whole period</li>
-          <li><span className="key terrain" />Terrain</li>
-        </ul>
       </div>
+      <ul className="sky-legend" aria-label="Legend">
+        <li><span className="key dot sun" />Sun now</li>
+        <li><span className="key dot earth" />Earth now</li>
+        <li><span className="key line" />Their paths over the whole period</li>
+        <li><span className="key terrain" />Terrain</li>
+      </ul>
       <p className="sky-caption num">
         At {dayLabel(offsetMs)}, {sunWords(S.sun_el[i], S.sun_frac[i])}. {earthWords(S.earth_el[i], earthVis)}
       </p>

@@ -1,4 +1,6 @@
-# Lunar Landing Site Navigator
+<img src="frontend/public/brand/lunaris-logo.png" alt="Lunaris" height="96">
+
+# Lunaris: lunar landing site navigator
 
 Compare lunar landing sites and dates by where the Sun and Earth sit above the real terrain horizon, so you can see at a glance when a lander has solar power and a direct radio link to Earth.
 

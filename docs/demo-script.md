@@ -24,7 +24,7 @@
 
 ### Shot 6: Share pressed
 - **On screen:** "Link copied", then the URL.
-- **Narration:** "Send the exact comparison to your team. Lunar Landing Site Navigator."
+- **Narration:** "Send the exact comparison to your team. Lunaris."
 
 ## Slide outline (7 slides)
 

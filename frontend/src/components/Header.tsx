@@ -26,8 +26,11 @@ export function Header() {
   return (
     <header className="header">
       <div className="brand">
-        <h1>Lunar Landing Site Navigator</h1>
-        <p>Compare landing sites and dates by when they get sunlight and can see Earth.</p>
+        <h1><img src="/brand/lunaris-logo.png" alt="Lunaris" width={70} height={64} /></h1>
+        <div>
+          <p className="tagline">Lunar landing site navigator</p>
+          <p>Compare landing sites and dates by when they get sunlight and can see Earth.</p>
+        </div>
       </div>
       <span className="spacer" />
       <span className="share-wrap">

@@ -40,6 +40,24 @@ function TerrainMesh({ terrain, ex }: { terrain: Terrain; ex: number }) {
 
 const LIGHT_DIST = 800;
 
+/** Soft radial glow texture for the Sun, made once. */
+function useGlowTexture(): THREE.Texture {
+  return useMemo(() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(255, 200, 110, 0.95)');
+    grad.addColorStop(0.25, 'rgba(240, 165, 42, 0.45)');
+    grad.addColorStop(1, 'rgba(240, 165, 42, 0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+}
+
 /** Mission time while the view is shown; frozen at its last value while hidden, so a hidden view never re-renders per tick. */
 function useLiveOffset(active: boolean): number {
   const last = useRef(0);
@@ -64,6 +82,8 @@ function SunEarth({ target, reach, zMax, active }: { target: V3; reach: number; 
   const samples = useStore((s) => activeScenario(s)?.result?.samples);
   const offsetMs = useLiveOffset(active);
   const light = useRef<THREE.DirectionalLight>(null);
+  const glow = useGlowTexture();
+  useEffect(() => () => glow.dispose(), [glow]);
 
   let sun: V3 = [0, 0, 1];
   let earth: V3 | null = null;
@@ -95,11 +115,14 @@ function SunEarth({ target, reach, zMax, active }: { target: V3; reach: number; 
     <>
       <directionalLight ref={light} castShadow position={[sun[0] * LIGHT_DIST, sun[1] * LIGHT_DIST, sun[2] * LIGHT_DIST]}
         intensity={3} shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} />
-      <mesh position={at(sun, 250)}><sphereGeometry args={[5, 24, 24]} /><meshBasicMaterial color="#f0a52a" wireframe={!sunVisible} transparent={!sunVisible} opacity={sunVisible ? 1 : 0.25} /></mesh>
+      <sprite position={at(sun, 250)} scale={[48, 48, 1]}>
+        <spriteMaterial map={glow} transparent depthWrite={false} blending={THREE.AdditiveBlending} opacity={sunVisible ? 1 : 0.2} />
+      </sprite>
+      <mesh position={at(sun, 250)}><sphereGeometry args={[6, 24, 24]} /><meshBasicMaterial color="#f0a52a" wireframe={!sunVisible} transparent={!sunVisible} opacity={sunVisible ? 1 : 0.25} /></mesh>
       <Html position={at(sun, 250)} zIndexRange={[4, 0]} style={{ pointerEvents: 'none' }}>
         <span className={`body-label sun ${sunVisible ? '' : 'hidden'}`}>Sun{sunVisible ? '' : ' (hidden)'}</span>
       </Html>
-      {earth && <mesh position={at(earth, 250)}><sphereGeometry args={[8, 24, 24]} /><meshBasicMaterial color="#62aee8" wireframe={!earthVisible} transparent={!earthVisible} opacity={earthVisible ? 1 : 0.25} /></mesh>}
+      {earth && <mesh position={at(earth, 250)}><sphereGeometry args={[10, 24, 24]} /><meshBasicMaterial color="#62aee8" wireframe={!earthVisible} transparent={!earthVisible} opacity={earthVisible ? 1 : 0.25} /></mesh>}
       {earth && (
         <Html position={at(earth, 250)} zIndexRange={[4, 0]} style={{ pointerEvents: 'none' }}>
           <span className={`body-label earth ${earthVisible ? '' : 'hidden'}`}>Earth{earthVisible ? '' : ' (hidden)'}</span>
@@ -225,6 +248,17 @@ export function Terrain3D({ active = true }: { active?: boolean }) {
   const setEx = useStore((s) => s.setExaggeration);
   const outside = lat !== undefined && lat > -84.5;
   const [cam, setCam] = useState<CamInfo | null>(null);
+  const [full, setFull] = useState(false);
+  const canFull = typeof document !== 'undefined' && !!document.fullscreenEnabled;
+  useEffect(() => {
+    const onChange = () => setFull(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+  const toggleFull = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.querySelector<HTMLElement>('[data-tour="stage"]')?.requestFullscreen();
+  };
   return (
     <section className="panel">
       <h2>South pole terrain, lit by the real Sun</h2>
@@ -242,6 +276,11 @@ export function Terrain3D({ active = true }: { active?: boolean }) {
             <span className="north-label">Near side (towards Earth)</span>
             <span className="scale"><span className="bar" style={{ width: cam.barPx }} />{cam.barKm} km</span>
           </div>
+        )}
+        {canFull && (
+          <button className="ghost full-btn" onClick={toggleFull} aria-pressed={full}>
+            {full ? 'Exit full screen' : 'Full screen'}
+          </button>
         )}
         <div className="overlay">
           <label>Exaggerate heights

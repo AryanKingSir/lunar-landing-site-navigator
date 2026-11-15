@@ -45,10 +45,10 @@ export default function App() {
             )}
             {view === 'timeline' && <TimelineGantt />}
             {view === 'numbers' && <ComparisonGrid />}
+            <TimeBar />
           </div>
         </div>
       </div>
-      <TimeBar />
       <Tutorial />
     </div>
   );
