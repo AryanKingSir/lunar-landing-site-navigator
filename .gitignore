@@ -11,3 +11,10 @@ frontend/dist/
 .DS_Store
 *.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
+
+# Kept locally, not part of the hosted app
+docs/submission.*
+docs/superpowers/
+docs/demo-script.md
+brand/
+demo/
