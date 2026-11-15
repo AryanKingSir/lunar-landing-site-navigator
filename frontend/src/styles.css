@@ -455,3 +455,18 @@ table.compare td .most { margin-left: 8px; }
   .tour-head { padding: 10px 12px 6px; }
   .tour-list { padding: 10px 12px; }
 }
+
+/* 3D view: labels, north arrow and scale bar */
+.pin-tag { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 4px; font: 700 12px var(--font);
+  color: #fff; background: var(--c); box-shadow: 0 0 0 2px var(--sky); transform: translateY(-14px); white-space: nowrap; }
+.pin-tag.active { box-shadow: 0 0 0 2px var(--sky), 0 0 0 4px var(--ink); }
+.body-label { display: inline-block; transform: translate(12px, -50%); font: 700 13px var(--font); color: var(--ink); white-space: nowrap;
+  text-shadow: 0 0 3px var(--sky), 0 0 3px var(--sky), 0 0 3px var(--sky); }
+.body-label.hidden { font-weight: 400; color: var(--ink-soft); }
+.nav-overlay { position: absolute; top: 12px; left: 12px; display: grid; grid-template-columns: auto auto; align-items: center; gap: 6px 10px;
+  padding: 8px 12px; border-radius: 6px; font-size: 12px; color: var(--ink-soft); background: color-mix(in srgb, var(--sky) 82%, transparent); pointer-events: none; }
+.nav-overlay .north { width: 28px; height: 28px; border: 1.5px solid var(--edge); border-radius: 50%; display: grid; place-items: center; }
+.nav-overlay .arrow { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 12px solid var(--earth); transform: translateY(-3px); }
+.nav-overlay .scale { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.nav-overlay .scale .bar { display: inline-block; height: 6px; border: 2px solid var(--ink); border-top: 0; }
+.three-wrap { height: clamp(320px, calc(100vh - 470px), 560px); }

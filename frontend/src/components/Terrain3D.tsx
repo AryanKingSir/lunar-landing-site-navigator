@@ -1,6 +1,6 @@
-import { OrbitControls, Stars } from '@react-three/drei';
+import { Html, OrbitControls, Stars } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
-import { Component, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { placeName } from '../lib/format';
 import { latLonToXY, R_MOON_M, toScene } from '../lib/projection';
@@ -96,12 +96,53 @@ function SunEarth({ target, reach, zMax, active }: { target: V3; reach: number; 
       <directionalLight ref={light} castShadow position={[sun[0] * LIGHT_DIST, sun[1] * LIGHT_DIST, sun[2] * LIGHT_DIST]}
         intensity={3} shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} />
       <mesh position={at(sun, 250)}><sphereGeometry args={[5, 24, 24]} /><meshBasicMaterial color="#f0a52a" wireframe={!sunVisible} transparent={!sunVisible} opacity={sunVisible ? 1 : 0.25} /></mesh>
+      <Html position={at(sun, 250)} zIndexRange={[4, 0]} style={{ pointerEvents: 'none' }}>
+        <span className={`body-label sun ${sunVisible ? '' : 'hidden'}`}>Sun{sunVisible ? '' : ' (hidden)'}</span>
+      </Html>
       {earth && <mesh position={at(earth, 250)}><sphereGeometry args={[8, 24, 24]} /><meshBasicMaterial color="#62aee8" wireframe={!earthVisible} transparent={!earthVisible} opacity={earthVisible ? 1 : 0.25} /></mesh>}
+      {earth && (
+        <Html position={at(earth, 250)} zIndexRange={[4, 0]} style={{ pointerEvents: 'none' }}>
+          <span className={`body-label earth ${earthVisible ? '' : 'hidden'}`}>Earth{earthVisible ? '' : ' (hidden)'}</span>
+        </Html>
+      )}
     </>
   );
 }
 
-function Scene({ terrain, active }: { terrain: Terrain; active: boolean }) {
+type CamInfo = { northDeg: number; barPx: number; barKm: number };
+const NICE_KM = [1, 2, 5, 10, 20, 50, 100, 200];
+
+/**
+ * Reports, whenever the user orbits or zooms (never per playback tick), where the near side
+ * (towards longitude 0, the Earth-facing side) points on screen and a round scale-bar length.
+ */
+function CameraReadout({ onChange }: { onChange: (c: CamInfo) => void }) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as (THREE.EventDispatcher & { target: THREE.Vector3 }) | null;
+  const size = useThree((s) => s.size);
+  useEffect(() => {
+    if (!controls) return;
+    const toPx = (v: THREE.Vector3) => { const q = v.clone().project(camera); return [(q.x + 1) / 2 * size.width, (1 - q.y) / 2 * size.height]; };
+    const update = () => {
+      const t = controls.target;
+      const [ax, ay] = toPx(t);
+      const [nx, ny] = toPx(t.clone().add(new THREE.Vector3(0, 10, 0))); // +y = towards longitude 0
+      const northDeg = (Math.atan2(nx - ax, -(ny - ay)) * 180) / Math.PI;
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+      const [rx, ry] = toPx(t.clone().add(right));
+      const pxPerKm = Math.hypot(rx - ax, ry - ay);
+      const barKm = NICE_KM.find((k) => k * pxPerKm >= 60) ?? NICE_KM[NICE_KM.length - 1];
+      onChange({ northDeg, barPx: Math.min(220, barKm * pxPerKm), barKm });
+    };
+    update();
+    const ctl = controls as unknown as { addEventListener: (e: string, f: () => void) => void; removeEventListener: (e: string, f: () => void) => void };
+    ctl.addEventListener('change', update);
+    return () => ctl.removeEventListener('change', update);
+  }, [camera, controls, size, onChange]);
+  return null;
+}
+
+function Scene({ terrain, active, onCamera }: { terrain: Terrain; active: boolean; onCamera: (c: CamInfo) => void }) {
   const activeId = useStore((s) => s.activeId);
   const lat = useStore((s) => activeScenario(s)?.lat);
   const lon = useStore((s) => activeScenario(s)?.lon);
@@ -118,7 +159,7 @@ function Scene({ terrain, active }: { terrain: Terrain; active: boolean }) {
   const pins = useMemo(
     () => scenarios.flatMap((s) => {
       const p = sitePos(terrain, s.lat, s.lon, ex);
-      return p ? [{ id: s.id, color: s.color, p }] : [];
+      return p ? [{ id: s.id, color: s.color, tag: s.tag, name: placeName(s.label), p }] : [];
     }),
     [terrain, scenarios, ex],
   );
@@ -131,13 +172,19 @@ function Scene({ terrain, active }: { terrain: Terrain; active: boolean }) {
       <ambientLight intensity={0.1} />
       <SunEarth target={target} reach={reach} zMax={zMax} active={active} />
       <TerrainMesh terrain={terrain} ex={ex} />
-      {pins.map(({ id, color, p }) => (
-        <mesh key={id} position={[p[0], p[1], p[2] + 1.5]}>
-          <sphereGeometry args={[id === activeId ? 1.6 : 1, 16, 16]} />
-          <meshBasicMaterial color={color} />
-        </mesh>
+      {pins.map(({ id, color, tag, name, p }) => (
+        <group key={id}>
+          <mesh position={[p[0], p[1], p[2] + 1.5]}>
+            <sphereGeometry args={[id === activeId ? 1.6 : 1, 16, 16]} />
+            <meshBasicMaterial color={color} />
+          </mesh>
+          <Html position={[p[0], p[1], p[2] + 3]} center zIndexRange={[3, 0]} style={{ pointerEvents: 'none' }}>
+            <span className={`pin-tag ${id === activeId ? 'active' : ''}`} style={{ '--c': color } as CSSProperties} title={name}>{tag}</span>
+          </Html>
+        </group>
       ))}
-      <OrbitControls target={target} maxDistance={1500} />
+      <OrbitControls makeDefault target={target} maxDistance={1500} />
+      <CameraReadout onChange={onCamera} />
     </>
   );
 }
@@ -177,6 +224,7 @@ export function Terrain3D({ active = true }: { active?: boolean }) {
   const ex = useStore((s) => s.exaggeration);
   const setEx = useStore((s) => s.setExaggeration);
   const outside = lat !== undefined && lat > -84.5;
+  const [cam, setCam] = useState<CamInfo | null>(null);
   return (
     <section className="panel">
       <h2>South pole terrain, lit by the real Sun</h2>
@@ -184,12 +232,19 @@ export function Terrain3D({ active = true }: { active?: boolean }) {
         {terrain ? (
           <WebGLBoundary>
             <Canvas shadows frameloop="demand" camera={{ position: [0, -220, 140], up: [0, 0, 1], fov: 45, near: 0.5, far: 6000 }}>
-              <Scene terrain={terrain} active={active} />
+              <Scene terrain={terrain} active={active} onCamera={setCam} />
             </Canvas>
           </WebGLBoundary>
         ) : <p className="muted" style={{ padding: 12 }}>Loading terrain…</p>}
+        {cam && (
+          <div className="nav-overlay" aria-hidden="true">
+            <span className="north" style={{ transform: `rotate(${cam.northDeg}deg)` }}><span className="arrow" /></span>
+            <span className="north-label">Near side (towards Earth)</span>
+            <span className="scale"><span className="bar" style={{ width: cam.barPx }} />{cam.barKm} km</span>
+          </div>
+        )}
         <div className="overlay">
-          <label>Height exaggeration
+          <label>Exaggerate heights
             <input type="range" min={1} max={5} step={0.5} value={ex} onChange={(e) => setEx(Number(e.target.value))} />
             <span className="num live">{ex}×</span>
           </label>
