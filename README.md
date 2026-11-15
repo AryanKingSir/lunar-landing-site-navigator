@@ -1,4 +1,4 @@
-<img src="frontend/public/brand/lunaris-logo.png" alt="Lunaris" height="96">
+<img src="docs/lunaris-logo-light.png" alt="Lunaris" height="160">
 
 # Lunaris: lunar landing site navigator
 
