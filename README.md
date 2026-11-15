@@ -4,8 +4,8 @@ Compare lunar landing sites and dates by where the Sun and Earth sit above the r
 
 Built for the NASA Space Apps Challenge 2026, challenge "Lunar Landing Site Navigator".
 
-- **Live app:** `<VERCEL_URL>`
-- **API:** `<RENDER_URL>/api/health`
+- **Live app:** https://lunar-landing-site-navigator-pi.vercel.app/
+- **API:** https://lunar-navigator-api-12on.onrender.com/api/health
 
 ![Sky view of Connecting Ridge](docs/screenshot.png)
 
