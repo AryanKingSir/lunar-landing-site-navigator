@@ -1,10 +1,10 @@
 // Renders the demo with whatever audio exists in assets/ (vo/<voice>/line-1..6.mp3, music.mp3, sfx/click.mp3).
-// Usage: node video/render.mjs [--draft] [--voice=george]
+// Usage: node video/render.mjs [--draft] [--voice=alice]
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
 const draft = process.argv.includes('--draft');
-const voice = (process.argv.find((a) => a.startsWith('--voice=')) ?? '--voice=george').slice(8);
+const voice = (process.argv.find((a) => a.startsWith('--voice=')) ?? '--voice=alice').slice(8);
 fs.mkdirSync('assets/brand', { recursive: true });
 fs.copyFileSync('../frontend/public/brand/lunaris-logo.png', 'assets/brand/lunaris-logo.png');
 const has = (p) => fs.existsSync(`assets/${p}`);

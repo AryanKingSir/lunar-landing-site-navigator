@@ -1,5 +1,6 @@
 import { AbsoluteFill, Audio, Img, interpolate, Sequence as Seq, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import cuesJson from '../../assets/cues.json';
+import horizon from '../../assets/horizon.json';
 import { BrowserFrame, C, Camera, Caption, center, ClickSound, Cursor, fitZoom, Sequence, Stage, Stills, tween, VIEW, type Box } from './kit';
 
 type Cues = {
@@ -18,33 +19,63 @@ export type AudioProps = {
   voGain: number; musicGain: number; duckGain: number;
 };
 export const SCENES = [
-  { id: 'intro', frames: 260 },
-  { id: 'compare', frames: 340 },
-  { id: 'sky', frames: 360 },
-  { id: 'terrain', frames: 360 },
+  { id: 'intro', frames: 280 },
+  { id: 'compare', frames: 320 },
+  { id: 'sky', frames: 370 },
+  { id: 'terrain', frames: 350 },
   { id: 'energy', frames: 300 },
   { id: 'share', frames: 250 },
 ] as const;
 const FADE = 14; // crossfade between scenes
-const VO_AT = [12, 16, 10, 14, 16, 8]; // voice line start, frames into its scene
+const VO_AT = [30, 24, 8, 18, 16, 8]; // voice line start, frames into its scene (first line waits 0.5 s)
 const STARTS = SCENES.map((_, i) => SCENES.slice(0, i).reduce((n, s) => n + s.frames - FADE, 0));
 
 /** Fades a scene in over its first frames (scenes overlap by FADE). */
 function SceneFade({ children, first }: { children: React.ReactNode; first?: boolean }) {
   const frame = useCurrentFrame();
-  const op = first ? 1 : interpolate(frame, [0, FADE], [0, 1], { extrapolateRight: 'clamp' });
+  const op = first ? 1 : tween(frame, 0, FADE, 0, 1);
   return <AbsoluteFill style={{ opacity: op }}>{children}</AbsoluteFill>;
 }
+
+// Connecting Ridge's real skyline (LOLA), heights exaggerated, drawn across the bottom of the intro.
+const SKY_W = 2400, SKY_H = 300, SKY_BASE = 900;
+const skyY = (el: number) => SKY_BASE - (el + 3.5) * 34;
+const SKYLINE = horizon.az.map((a, i) => `${i ? 'L' : 'M'}${((a / 360) * SKY_W).toFixed(1)},${skyY(horizon.el[i]).toFixed(1)}`).join(' ');
 
 function Intro() {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const s = spring({ frame: frame - 6, fps, config: { damping: 200, mass: 0.9 } });
   const tag = tween(frame, 40, 70, 0, 1);
+  const land = tween(frame, 0, 60, 0, 1);
+  const pan = -240 - frame * 0.5;              // slow drift along the horizon
+  // The Sun skims sideways along the ridge, its top just clearing it.
+  const sunX = 1180 + frame * 0.9;
+  const k = Math.round((((sunX - pan) / SKY_W) * 360) / (360 / horizon.az.length)) % horizon.az.length;
+  const sunY = skyY(Math.max(...horizon.el.slice(Math.max(0, k - 2), k + 3))) - 6;
   return (
     <Stage>
+      <svg width={1920} height={1080} style={{ position: 'absolute', inset: 0, opacity: land }}>
+        <defs>
+          <radialGradient id="introGlow">
+            <stop offset="0" stopColor={C.sun} stopOpacity="0.55" />
+            <stop offset="0.4" stopColor={C.sun} stopOpacity="0.16" />
+            <stop offset="1" stopColor={C.sun} stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="introLand" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#cfd0cc" />
+            <stop offset="1" stopColor="#dcdcd8" />
+          </linearGradient>
+        </defs>
+        <circle cx={sunX} cy={sunY} r={260} fill="url(#introGlow)" />
+        <circle cx={sunX} cy={sunY} r={13} fill={C.sun} />
+        <g transform={`translate(${pan},${(1 - land) * 40})`}>
+          <path d={`${SKYLINE} L${SKY_W},1080 L0,1080 Z`} fill="url(#introLand)" />
+          <path d={SKYLINE} fill="none" stroke="#9fa19d" strokeWidth={1.5} />
+        </g>
+      </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
-        <div style={{ textAlign: 'center', transform: `translateY(${-30 + (1 - s) * 30}px)` }}>
+        <div style={{ textAlign: 'center', transform: `translateY(${-70 + (1 - s) * 30}px)` }}>
           <Img src={staticFile('brand/lunaris-logo.png')} style={{ height: 260, opacity: s, transform: `scale(${0.94 + 0.06 * s})` }} />
           <div style={{ marginTop: 18, fontSize: 30, fontWeight: 600, color: C.soft, opacity: tag, transform: `translateY(${(1 - tag) * 10}px)` }}>
             Lunar landing site navigator
@@ -66,14 +97,14 @@ function WindowIn({ children }: { children: React.ReactNode }) {
 function Compare() {
   const frame = useCurrentFrame();
   const c = cues.compare;
-  const zoom = tween(frame, 236, 300, 1, fitZoom(c.summary));
-  const focus = { x: tween(frame, 236, 300, PAGE_C.x, center(c.summary).x), y: tween(frame, 236, 300, PAGE_C.y, center(c.summary).y + 20) };
+  const zoom = tween(frame, 210, 272, 1, fitZoom(c.summary));
+  const focus = { x: tween(frame, 210, 272, PAGE_C.x, center(c.summary).x), y: tween(frame, 210, 272, PAGE_C.y, center(c.summary).y + 20) };
   return (
     <Stage>
       <WindowIn>
         <Camera z={zoom} focus={focus}>
-          <Stills items={[[0, 'compare/a-start.jpg'], [100, 'compare/b-dialog.jpg'], [168, 'compare/c-picked.jpg'], [224, 'compare/d-three.jpg']]} />
-          <Cursor z={zoom} clicks={[94, 162, 218]} path={[[40, OFF], [90, center(c.addSite)], [112, center(c.addSite)], [158, center(c.shackleton)], [170, center(c.shackleton)], [214, center(c.addButton)], [250, center(c.addButton)], [300, OFF]]} />
+          <Stills items={[[0, 'compare/a-start.jpg'], [90, 'compare/b-dialog.jpg'], [150, 'compare/c-picked.jpg'], [200, 'compare/d-three.jpg']]} />
+          <Cursor z={zoom} clicks={[84, 144, 194]} path={[[30, OFF], [80, center(c.addSite)], [100, center(c.addSite)], [140, center(c.shackleton)], [152, center(c.shackleton)], [190, center(c.addButton)], [226, center(c.addButton)], [272, OFF]]} />
         </Camera>
       </WindowIn>
       <Caption text="Compare any site, any date." from={24} />
@@ -139,23 +170,35 @@ function Share() {
   const { fps } = useVideoConfig();
   const c = cues.share;
   const out = spring({ frame: frame - 92, fps, config: { damping: 200 } });
-  const end = tween(frame, 104, 132, 0, 1);
+  // Gentle push-in on the Share button so "Link copied" reads, eased back as the window leaves.
+  const z = tween(frame, 4, 44, 1, 1.35);
+  const focus = { x: tween(frame, 4, 44, PAGE_C.x, center(c.share).x - 200), y: tween(frame, 4, 44, PAGE_C.y, center(c.share).y + 120) };
+  const rise = (from: number) => {
+    const v = spring({ frame: frame - from, fps, config: { damping: 200, mass: 0.8 } });
+    return { opacity: v, transform: `translateY(${(1 - v) * 18}px)` };
+  };
   return (
     <Stage>
       <BrowserFrame style={{ transform: `scale(${1 - 0.12 * out}) translateY(${-out * 40}px)`, opacity: 1 - out }}>
-        <Camera z={1} focus={PAGE_C}>
+        <Camera z={z} focus={focus}>
           <Stills items={[[0, 'share/a-start.jpg'], [52, 'share/b-copied.jpg']]} />
-          <Cursor z={1} clicks={[46]} path={[[0, OFF], [40, center(c.share)], [90, center(c.share)]]} />
+          <Cursor z={z} clicks={[46]} path={[[0, OFF], [40, center(c.share)], [90, center(c.share)]]} />
         </Camera>
       </BrowserFrame>
       <Caption text="Share it with your team." from={6} to={98} />
-      <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', opacity: end }}>
-        <div style={{ textAlign: 'center', transform: `translateY(${(1 - end) * 16}px)` }}>
-          <Img src={staticFile('brand/lunaris-logo.png')} style={{ height: 220 }} />
-          <div style={{ marginTop: 22, fontSize: 30, fontWeight: 600, color: C.ink }}>lunar-landing-site-navigator-pi.vercel.app</div>
-          <div style={{ marginTop: 8, fontSize: 22, color: C.soft }}>NASA Space Apps Challenge 2026</div>
+      {frame >= 100 && (
+        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+          <div style={{ textAlign: 'center', display: 'grid', justifyItems: 'center' }}>
+            <Img src={staticFile('brand/lunaris-logo.png')} style={{ height: 220, ...rise(104), transform: `${rise(104).transform} scale(${0.96 + 0.04 * rise(104).opacity})` }} />
+            <div style={{ marginTop: 30, fontSize: 18, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.soft, ...rise(118) }}>Try it now</div>
+            <div style={{ marginTop: 12, padding: '14px 30px', borderRadius: 999, background: '#fff', border: `1px solid ${C.hairline}`,
+              boxShadow: '0 10px 30px rgba(30,33,37,0.10)', fontSize: 30, fontWeight: 600, color: C.ink, ...rise(124) }}>
+              lunar-landing-site-navigator-pi.vercel.app
+            </div>
+            <div style={{ marginTop: 22, fontSize: 22, color: C.soft, ...rise(134) }}>NASA Space Apps Challenge 2026</div>
+          </div>
         </div>
-      </div>
+      )}
     </Stage>
   );
 }

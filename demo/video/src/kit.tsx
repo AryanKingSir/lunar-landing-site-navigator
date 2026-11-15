@@ -34,6 +34,7 @@ export function Stage({ children }: { children: ReactNode }) {
 
 /** macOS-style browser window showing the live site's address. */
 export function BrowserFrame({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  const drift = 1 + useCurrentFrame() * 0.00004; // content creeps ~1% per scene: never fully static
   return (
     <div style={{ position: 'absolute', left: (1920 - WIN.w) / 2, top: WIN.top, width: WIN.w, height: WIN_H, borderRadius: 14, overflow: 'hidden',
       background: C.page, boxShadow: '0 40px 90px rgba(30,33,37,0.22), 0 6px 18px rgba(30,33,37,0.10), 0 0 0 1px rgba(30,33,37,0.10)', ...style }}>
@@ -42,7 +43,9 @@ export function BrowserFrame({ children, style }: { children: ReactNode; style?:
         <div style={{ margin: '0 auto', transform: 'translateX(-30px)', minWidth: 420, height: 26, borderRadius: 7, background: '#fff', display: 'grid', placeItems: 'center',
           fontSize: 14, color: C.soft, border: `1px solid ${C.hairline}` }}>lunar-landing-site-navigator-pi.vercel.app</div>
       </div>
-      <div style={{ position: 'relative', width: WIN.w, height: VIEW.h * SCALE, overflow: 'hidden' }}>{children}</div>
+      <div style={{ position: 'relative', width: WIN.w, height: VIEW.h * SCALE, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, transform: `scale(${drift})` }}>{children}</div>
+      </div>
     </div>
   );
 }
@@ -122,15 +125,17 @@ export function Cursor({ path, clicks, z }: { path: [number, { x: number; y: num
   );
 }
 
-/** Large caption under the window, fading and rising in. */
+/** Large caption under the window; words rise in one after another. */
 export function Caption({ text, from = 0, to = Infinity }: { text: string; from?: number; to?: number }) {
   const frame = useCurrentFrame();
-  const inn = tween(frame, from, from + 18, 0, 1);
   const out = to === Infinity ? 1 : tween(frame, to - 14, to, 1, 0);
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, top: WIN.top + WIN_H + 22, textAlign: 'center', fontSize: 40, fontWeight: 700,
-      letterSpacing: '-0.01em', color: C.ink, opacity: Math.min(inn, out), transform: `translateY(${(1 - inn) * 14}px)` }}>
-      {text}
+      letterSpacing: '-0.01em', color: C.ink, opacity: out }}>
+      {text.split(' ').map((w, i, all) => {
+        const v = tween(frame, from + i * 3, from + i * 3 + 16, 0, 1);
+        return <span key={i} style={{ display: 'inline-block', opacity: v, transform: `translateY(${(1 - v) * 14}px)`, filter: v < 1 ? `blur(${(1 - v) * 4}px)` : undefined }}>{w}{i < all.length - 1 ? '\u00a0' : ''}</span>;
+      })}
     </div>
   );
 }

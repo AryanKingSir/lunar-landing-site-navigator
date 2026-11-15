@@ -11,7 +11,8 @@ const VIEW = { width: 1600, height: 1000 };
 const DAY = 86_400_000;
 const FPS = 60;
 const START = '2026-12-01T00:00';
-const link = (sites, extra = '') => `${BASE}?s=${sites.map((s) => `${s}@${START}~30`).join(';')}${extra}`;
+// Opens at Day 2 unless `extra` sets the time (at Day 0 the Sun sits on its own "Day 0" path marker).
+const link = (sites, extra = '') => `${BASE}?s=${sites.map((s) => `${s}@${START}~30`).join(';')}${extra.includes('t=') ? '' : '&t=48'}${extra}`;
 
 const cues = fs.existsSync(path.join(OUT, 'cues.json')) ? JSON.parse(fs.readFileSync(path.join(OUT, 'cues.json'), 'utf8')) : {};
 const saveCues = () => fs.writeFileSync(path.join(OUT, 'cues.json'), JSON.stringify(cues, null, 2));
@@ -28,7 +29,9 @@ async function newPage() {
 
 /** Waits until every site has its result (no skeletons) and fonts are ready. */
 async function settle(page, ms = 600) {
-  await page.waitForFunction(() => !document.querySelector('.skel') && !document.querySelector('[role=status].sum-skel'), null, { timeout: 90_000 });
+  await page.waitForFunction(() => !document.querySelector('.skel') && !document.querySelector('[role=status].sum-skel')
+    && (document.querySelector('[data-tour=summary]')?.innerText ?? '').includes('%')
+    && !document.body.innerText.includes('Computing'), null, { timeout: 90_000 });
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(VIEW.width - 2, 2);
   await page.waitForTimeout(ms);
@@ -70,7 +73,21 @@ async function sweep(page, scene, d0, d1, seconds, waitFn = frames) {
   saveCues();
 }
 
+const API = process.env.LUNARIS_API ?? 'https://lunar-navigator-api-12on.onrender.com';
+
 const scenes = {
+  /** Intro backdrop: Connecting Ridge's real skyline (LOLA horizon mask) from the live API. */
+  async horizon() {
+    const sites = await (await fetch(`${API}/api/sites`)).json();
+    const s = (sites.sites ?? sites).find((x) => x.id === 'connecting-ridge');
+    const res = await fetch(`${API}/api/scenario`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lat: s.lat, lon: s.lon, start: '2026-12-01T00:00:00Z', end: '2026-12-02T00:00:00Z', step_min: 240 }),
+    });
+    const { horizon } = await res.json();
+    fs.writeFileSync(path.join(OUT, 'horizon.json'), JSON.stringify(horizon));
+  },
+
   /** Scene 2: two sites → add Shackleton floor → 3 sites. */
   async compare() {
     const page = await newPage();
@@ -106,7 +123,7 @@ const scenes = {
     await page.evaluate(() => window.scrollBy(0, 160));
     await page.waitForTimeout(500);
     cues.sky = { pano: await box(page, '.pano'), caption: await box(page, '.sky-caption') };
-    await sweep(page, 'sky', 0, 15, 6);
+    await sweep(page, 'sky', 2, 17, 6);
     await page.context().close();
   },
 
@@ -129,8 +146,6 @@ const scenes = {
   async energy() {
     const page = await newPage();
     await page.goto(link(['connecting-ridge', 'apollo11', 'shackleton-floor']), { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => (document.querySelector('[data-tour=summary]')?.innerText ?? '').includes('%')
-      && !document.body.innerText.includes('Computing'), null, { timeout: 90_000 });
     await settle(page, 1000);
     await still(page, 'energy', 'a-start');
     const c = { tab: await box(page, '[data-tour=tab-numbers]') };
