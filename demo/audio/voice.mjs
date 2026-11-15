@@ -1,16 +1,10 @@
 // Generates the voice-over lines with ElevenLabs text-to-speech.
+// Lines come from video/timing.json.
 // Usage: source audio/key.sh && node audio/voice.mjs <voiceId:name>...   → assets/vo/<name>/line-N.mp3
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const LINES = [
-  "At the Moon's south pole, the Sun barely clears the horizon.",
-  'Lunaris compares landing sites and dates in seconds.',
-  'See the real skyline, from NASA laser data, and exactly when Earth rises.',
-  'Watch sunlight and shadow sweep across the terrain.',
-  'And see how much solar energy each site can collect.',
-  'Then share it with your team. Lunaris.',
-];
+const LINES = JSON.parse(fs.readFileSync('video/timing.json', 'utf8')).scenes.map((s) => s.line);
 
 const key = process.env.ELEVENLABS_API_KEY;
 if (!key) throw new Error('ELEVENLABS_API_KEY is not set (source audio/key.sh)');

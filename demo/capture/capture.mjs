@@ -168,6 +168,8 @@ const scenes = {
     const p = await box(page, 'tr:has(th:has-text("Average power over the period"))');
     const e = await box(page, 'tr:has(th:has-text("Energy over the period"))');
     c.rows = { x: p.x, y: p.y, w: p.w, h: e.y + e.h - p.y };
+    const r = await page.locator('tr:has(th:has-text("Radio link to Earth"))').last().boundingBox(); // whole-period row
+    c.radio = { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
     c.scrollY = await page.evaluate(() => window.scrollY);
     cues.energy = c; saveCues();
     await page.context().close();

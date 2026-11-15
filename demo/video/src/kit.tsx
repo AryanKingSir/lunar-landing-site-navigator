@@ -1,6 +1,6 @@
 // Shared building blocks: page tokens, browser frame, camera, cursor, caption, image sequences.
-import { createContext, useContext, type CSSProperties, type ReactNode } from 'react';
-import { Audio, Easing, Img, interpolate, Sequence as RSeq, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import type { CSSProperties, ReactNode } from 'react';
+import { Easing, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { loadFont } from '@remotion/google-fonts/AtkinsonHyperlegibleNext';
 
 export const { fontFamily } = loadFont('normal', { weights: ['400', '600', '700'], subsets: ['latin'] });
@@ -91,16 +91,11 @@ export function Sequence({ dir, count, offset = 0, rate = 1 }: { dir: string; co
   return <Shot src={`${dir}/f${String(i).padStart(4, '0')}.jpg`} />;
 }
 
-/** Click sound for every cursor press (null = silent). */
-export const ClickSound = createContext<string | null>(null);
-
 /** Arrow cursor gliding between page points; `clicks` are frames where it presses. */
 export function Cursor({ path, clicks, z }: { path: [number, { x: number; y: number }][]; clicks: number[]; z: number }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const click = useContext(ClickSound);
-  const sounds = click && clicks.map((c) => <RSeq key={c} from={c} durationInFrames={30} layout="none"><Audio src={staticFile(click)} /></RSeq>);
-  if (frame < path[0][0]) return <>{sounds}</>;
+  if (frame < path[0][0]) return null;
   let p = path[path.length - 1][1];
   for (let i = 0; i < path.length - 1; i++) {
     const [f0, a] = path[i], [f1, b] = path[i + 1];
@@ -112,7 +107,6 @@ export function Cursor({ path, clicks, z }: { path: [number, { x: number; y: num
   const appear = spring({ frame: frame - path[0][0], fps, config: { damping: 200 } });
   return (
     <div style={{ position: 'absolute', left: p.x, top: p.y, transform: `scale(${s})`, transformOrigin: '0 0', opacity: appear, zIndex: 10 }}>
-      {sounds}
       {ripple !== undefined && (
         <span style={{ position: 'absolute', left: -24, top: -24, width: 48, height: 48, borderRadius: 24, border: `3px solid ${C.ink}`,
           opacity: 0.5 * (1 - ripple / 24), transform: `scale(${0.4 + ripple / 24})` }} />

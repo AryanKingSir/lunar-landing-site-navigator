@@ -1,11 +1,12 @@
-import { AbsoluteFill, Audio, Img, interpolate, Sequence as Seq, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Img, Sequence as Seq, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import cuesJson from '../../assets/cues.json';
 import horizon from '../../assets/horizon.json';
-import { BrowserFrame, C, Camera, Caption, center, ClickSound, Cursor, fitZoom, Sequence, Stage, Stills, tween, VIEW, type Box } from './kit';
+import timing from '../timing.json';
+import { BrowserFrame, C, Camera, Caption, center, Cursor, fitZoom, Sequence, Stage, Stills, tween, VIEW, type Box } from './kit';
 
 type Cues = {
   compare: { addSite: Box; shackleton: Box; addButton: Box; summary: Box };
-  energy: { tab: Box; rows: Box; scrollFrames: number };
+  energy: { tab: Box; rows: Box; radio: Box; scrollFrames: number };
   share: { share: Box };
   sky: { pano: Box; caption: Box; frames: number };
   terrain: { wrap: Box; frames: number };
@@ -14,21 +15,13 @@ const cues = cuesJson as unknown as Cues;
 const PAGE_C = { x: VIEW.w / 2, y: VIEW.h / 2 };
 const OFF = { x: VIEW.w + 60, y: VIEW.h * 0.75 };
 
-export type AudioProps = {
-  vo: (string | null)[]; voDur: number[]; music: string | null; click: string | null;
-  voGain: number; musicGain: number; duckGain: number;
-};
-export const SCENES = [
-  { id: 'intro', frames: 280 },
-  { id: 'compare', frames: 320 },
-  { id: 'sky', frames: 370 },
-  { id: 'terrain', frames: 350 },
-  { id: 'energy', frames: 300 },
-  { id: 'share', frames: 250 },
-] as const;
-const FADE = 14; // crossfade between scenes
-const VO_AT = [30, 24, 8, 18, 16, 8]; // voice line start, frames into its scene (first line waits 0.5 s)
+export type AudioProps = { soundtrack: string | null }; // one pre-mixed track (audio/mix.py)
+
+// Scene lengths, voice timing, captions and clicks live in ../timing.json (shared with audio/mix.py).
+export const SCENES = timing.scenes;
+const FADE = timing.fade; // crossfade between scenes
 const STARTS = SCENES.map((_, i) => SCENES.slice(0, i).reduce((n, s) => n + s.frames - FADE, 0));
+const T = (id: string) => SCENES.find((s) => s.id === id)!;
 
 /** Fades a scene in over its first frames (scenes overlap by FADE). */
 function SceneFade({ children, first }: { children: React.ReactNode; first?: boolean }) {
@@ -82,7 +75,7 @@ function Intro() {
           </div>
         </div>
       </div>
-      <Caption text="At the lunar south pole, the Sun barely rises." from={90} />
+      <Caption text={T('intro').caption} from={90} />
     </Stage>
   );
 }
@@ -104,10 +97,10 @@ function Compare() {
       <WindowIn>
         <Camera z={zoom} focus={focus}>
           <Stills items={[[0, 'compare/a-start.jpg'], [90, 'compare/b-dialog.jpg'], [150, 'compare/c-picked.jpg'], [200, 'compare/d-three.jpg']]} />
-          <Cursor z={zoom} clicks={[84, 144, 194]} path={[[30, OFF], [80, center(c.addSite)], [100, center(c.addSite)], [140, center(c.shackleton)], [152, center(c.shackleton)], [190, center(c.addButton)], [226, center(c.addButton)], [272, OFF]]} />
+          <Cursor z={zoom} clicks={T('compare').clicks} path={[[30, OFF], [80, center(c.addSite)], [100, center(c.addSite)], [140, center(c.shackleton)], [152, center(c.shackleton)], [190, center(c.addButton)], [226, center(c.addButton)], [272, OFF]]} />
         </Camera>
       </WindowIn>
-      <Caption text="Compare any site, any date." from={24} />
+      <Caption text={T('compare').caption} from={24} />
     </Stage>
   );
 }
@@ -122,7 +115,7 @@ function Sky() {
       <BrowserFrame>
         <Camera z={zoom} focus={focus}><Sequence dir="sky" count={cues.sky.frames} /></Camera>
       </BrowserFrame>
-      <Caption text="The real horizon, from NASA laser data." from={10} />
+      <Caption text={T('sky').caption} from={10} />
     </Stage>
   );
 }
@@ -135,32 +128,40 @@ function Terrain() {
       <BrowserFrame>
         <Camera z={zoom} focus={{ x: VIEW.w / 2, y: VIEW.h * 0.42 }}><Sequence dir="terrain" count={cues.terrain.frames} /></Camera>
       </BrowserFrame>
-      <Caption text="Light and shadow, hour by hour." from={10} />
+      <Caption text={T('terrain').caption} from={10} />
     </Stage>
+  );
+}
+
+/** Soft highlight band over a table row, multiplied onto the page. */
+function Mark({ b, color, from }: { b: Box; color: string; from: number }) {
+  const v = tween(useCurrentFrame(), from, from + 20, 0, 1);
+  const pad = 10;
+  return (
+    <div style={{ position: 'absolute', left: b.x - pad, top: b.y + 3, width: b.w + 2 * pad, height: b.h - 6, borderRadius: 10,
+      background: `${color}2e`, boxShadow: `0 0 0 2px ${color}`, mixBlendMode: 'multiply', opacity: v, transform: `scale(${0.98 + 0.02 * v})` }} />
   );
 }
 
 function Energy() {
   const frame = useCurrentFrame();
   const c = cues.energy;
-  const zoom = tween(frame, 150, 240, 1, 1.08);
-  const focus = { x: tween(frame, 150, 240, PAGE_C.x, center(c.rows).x), y: tween(frame, 150, 240, PAGE_C.y, center(c.rows).y) };
-  const numbers = interpolate(frame, [74, 79], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const mark = tween(frame, 150, 172, 0, 1);
-  const pad = 10;
+  const both = { x: c.rows.x, y: c.radio.y, w: c.rows.w, h: c.rows.y + c.rows.h - c.radio.y };
+  const zoom = tween(frame, 145, 235, 1, 1.08);
+  const focus = { x: tween(frame, 145, 235, PAGE_C.x, center(both).x), y: tween(frame, 145, 235, PAGE_C.y, center(both).y) };
+  const numbers = tween(frame, 74, 80, 0, 1);
   return (
     <Stage>
       <BrowserFrame>
         <Camera z={zoom} focus={focus}>
           <Stills items={[[0, 'energy/a-start.jpg']]} />
           {numbers > 0 && <div style={{ position: 'absolute', inset: 0, opacity: numbers }}><Sequence dir="energy/scroll" count={c.scrollFrames} offset={92} /></div>}
-          <div style={{ position: 'absolute', left: c.rows.x - pad, top: c.rows.y - pad / 2, width: c.rows.w + 2 * pad, height: c.rows.h + pad,
-            borderRadius: 10, background: 'rgba(240,165,42,0.18)', boxShadow: `0 0 0 2px ${C.sun}`, mixBlendMode: 'multiply',
-            opacity: mark, transform: `scale(${0.98 + 0.02 * mark})` }} />
-          <Cursor z={zoom} clicks={[68]} path={[[14, OFF], [62, center(c.tab)], [84, center(c.tab)], [130, OFF]]} />
+          <Mark b={c.radio} color="#2f72c4" from={148} />
+          <Mark b={c.rows} color={C.sun} from={188} />
+          <Cursor z={zoom} clicks={T('energy').clicks} path={[[14, OFF], [62, center(c.tab)], [84, center(c.tab)], [130, OFF]]} />
         </Camera>
       </BrowserFrame>
-      <Caption text="Solar energy, site by site." from={14} />
+      <Caption text={T('energy').caption} from={14} />
     </Stage>
   );
 }
@@ -182,10 +183,10 @@ function Share() {
       <BrowserFrame style={{ transform: `scale(${1 - 0.12 * out}) translateY(${-out * 40}px)`, opacity: 1 - out }}>
         <Camera z={z} focus={focus}>
           <Stills items={[[0, 'share/a-start.jpg'], [52, 'share/b-copied.jpg']]} />
-          <Cursor z={z} clicks={[46]} path={[[0, OFF], [40, center(c.share)], [90, center(c.share)]]} />
+          <Cursor z={z} clicks={T('share').clicks} path={[[0, OFF], [40, center(c.share)], [90, center(c.share)]]} />
         </Camera>
       </BrowserFrame>
-      <Caption text="Share it with your team." from={6} to={98} />
+      <Caption text={T('share').caption} from={6} to={98} />
       {frame >= 100 && (
         <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
           <div style={{ textAlign: 'center', display: 'grid', justifyItems: 'center' }}>
@@ -205,30 +206,19 @@ function Share() {
 
 const VIEWS = { intro: Intro, compare: Compare, sky: Sky, terrain: Terrain, energy: Energy, share: Share };
 
-export function Main({ vo, voDur, music, click, voGain, musicGain, duckGain }: AudioProps) {
-  const { fps } = useVideoConfig();
-  const spans = vo.map((v, i) => (v ? [STARTS[i] + VO_AT[i], STARTS[i] + VO_AT[i] + voDur[i] * fps] : null)).filter(Boolean) as number[][];
-  // Music: fade in/out, ducked to duckGain while a line plays (12-frame ramps).
-  const musicVol = (f: number) => {
-    const talk = Math.max(0, ...spans.map(([a, b]) => interpolate(f, [a - 12, a, b, b + 12], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })));
-    const edge = interpolate(f, [0, 30, TOTAL - 60, TOTAL], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-    return edge * (musicGain + (duckGain - musicGain) * talk);
-  };
+export function Main({ soundtrack }: AudioProps) {
   return (
-    <ClickSound.Provider value={click}>
-      <AbsoluteFill style={{ background: C.page }}>
-        {SCENES.map((s, i) => {
-          const View = VIEWS[s.id];
-          return (
-            <Seq key={s.id} from={STARTS[i]} durationInFrames={s.frames + (i === SCENES.length - 1 ? 0 : FADE)}>
-              <SceneFade first={i === 0}><View /></SceneFade>
-              {vo[i] && <Seq from={VO_AT[i]} layout="none"><Audio src={staticFile(vo[i]!)} volume={voGain} /></Seq>}
-            </Seq>
-          );
-        })}
-        {music && <Audio src={staticFile(music)} volume={musicVol} />}
-      </AbsoluteFill>
-    </ClickSound.Provider>
+    <AbsoluteFill style={{ background: C.page }}>
+      {SCENES.map((s, i) => {
+        const View = VIEWS[s.id as keyof typeof VIEWS];
+        return (
+          <Seq key={s.id} from={STARTS[i]} durationInFrames={s.frames + (i === SCENES.length - 1 ? 0 : FADE)}>
+            <SceneFade first={i === 0}><View /></SceneFade>
+          </Seq>
+        );
+      })}
+      {soundtrack && <Audio src={staticFile(soundtrack)} />}
+    </AbsoluteFill>
   );
 }
 

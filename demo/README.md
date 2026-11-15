@@ -6,14 +6,16 @@ Output: `out/lunaris-demo-30s.mp4` (1920×1080, 60 fps, H.264 + AAC, 30.0 s).
 
 ## Story
 
+Script, captions, scene lengths, voice timing and click moments all live in `video/timing.json`.
+
 | Time | Picture | Caption | Voice |
 |---|---|---|---|
-| 0–4.5 s | Logo over Connecting Ridge's real skyline, the Sun skimming along it | At the lunar south pole, the Sun barely rises. | At the Moon's south pole, the Sun barely clears the horizon. |
-| 4.5–9.5 s | Add Shackleton crater floor, zoom on the summary | Compare any site, any date. | Lunaris compares landing sites and dates in seconds. |
-| 9.5–15.5 s | Sky view, Day 2 → 17 | The real horizon, from NASA laser data. | See the real skyline, from NASA laser data, and exactly when Earth rises. |
-| 15.5–21 s | 3D terrain, shadows over 5 days | Light and shadow, hour by hour. | Watch sunlight and shadow sweep across the terrain. |
-| 21–26 s | All numbers → power and energy rows | Solar energy, site by site. | And see how much solar energy each site can collect. |
-| 26–30 s | Share → end card with the URL | Share it with your team. | Then share it with your team. Lunaris. |
+| 0–4.5 s | Logo over Connecting Ridge's real skyline, the Sun skimming along it | Where every shadow matters. | The lunar south pole. Where every shadow matters. |
+| 4.5–9.5 s | Add Shackleton crater floor, zoom on the summary | Any site. Any date. | Lunaris compares any landing site, on any date, in seconds. |
+| 9.5–15.5 s | Sky view, Day 2 → 17: Sun and Earth over the LOLA skyline | Real NASA terrain. Real horizons. | Real NASA terrain shows exactly when the Sun, and Earth, clear the horizon. |
+| 15.5–21 s | 3D terrain, shadows over 5 days | Light and shadow, hour by hour. | Watch light and shadow move across the pole, hour by hour. |
+| 21–26 s | All numbers: radio link to Earth (blue), then solar power and energy (orange) | Solar power. A link to Earth. | Solar power, and a radio link to Earth. Measured for every site. |
+| 26–30 s | Share → end card with the URL | Plan it. Share it. | Plan your landing. Share it with your team. Lunaris. |
 
 ## Re-render
 
@@ -23,14 +25,35 @@ npm install
 npx playwright install chromium      # once
 node capture/capture.mjs             # all scenes + intro skyline (horizon), or e.g. `node capture/capture.mjs energy share`
 source audio/key.sh                  # ELEVENLABS_API_KEY (from the env, or the elevenlabs MCP entry in ~/.claude.json)
-node audio/voice.mjs Xb7hH8MSUJpSbSDYk0k2:alice    # voice lines → assets/vo/alice/
-node video/render.mjs                # voice: alice (default); add --draft for a fast half-size preview
+node audio/voice.mjs hpp4J3VqNfWAUOO0d1Us:bella    # lines from video/timing.json → assets/vo/bella/
+node video/render.mjs                # mixes assets/soundtrack.wav, then renders; add --draft for a fast half-size preview
 npm run studio                       # live preview in Remotion Studio
 ```
 
-Trial voices are also in `assets/vo/george` and `assets/vo/brian` (`--voice=george`). The music bed (`assets/music.mp3`) and click (`assets/sfx/click.mp3`) come from the ElevenLabs sound-effects API; the music API needs a paid plan.
+### Audio
 
-The voice lines are in `audio/voice.mjs`, captions and timing in `video/src/Main.tsx`.
+`audio/mix.py` builds the whole soundtrack sample-accurately (macOS `afconvert` + numpy), and Remotion just plays that one track:
+
+- **Voice:** each line has the TTS mouth-click artefacts in its pauses removed, is levelled to the same loudness, and is placed at its scene's `voAt`.
+- **Music bed:** fades in and out, and ducks smoothly under the voice.
+- **Clicks:** each cursor click gets a short synthesised tick.
+- **Peaks:** a soft limiter keeps them under -1 dBFS.
+
+The mixer warns if a voice line runs into the next one.
+
+### Using the Lara voice
+
+Lara (`vChnJZ1Cu89g2XXumPfT`) is a Voice Library voice, and the ElevenLabs API only allows library voices on a paid plan. Either:
+
+- **Paid plan:** `node audio/voice.mjs vChnJZ1Cu89g2XXumPfT:lara`.
+- **Website:**
+  1. In ElevenLabs, add Lara to My Voices.
+  2. In Text to Speech (Multilingual v2), generate each `line` from `video/timing.json`.
+  3. Save the files as `assets/vo/lara/line-1.mp3` … `line-6.mp3`.
+
+`node video/render.mjs` uses `lara` automatically when those files exist (otherwise `bella`; or pass `--voice=<name>`).
+
+Other generated voices are in `assets/vo/` (alice and george read the previous script). The music bed (`assets/music.mp3`) comes from the ElevenLabs sound-effects API; the music API needs a paid plan.
 
 ## YouTube
 

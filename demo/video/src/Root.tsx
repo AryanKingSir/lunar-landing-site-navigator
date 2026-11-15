@@ -1,7 +1,7 @@
 import { Composition } from 'remotion';
 import { Main, TOTAL, type AudioProps } from './Main';
 
-const defaults: AudioProps = { vo: [null, null, null, null, null, null], voDur: [0, 0, 0, 0, 0, 0], music: null, click: null, voGain: 1, musicGain: 0.12, duckGain: 0.06 };
+const defaults: AudioProps = { soundtrack: null };
 
 export function Root() {
   return (
