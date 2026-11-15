@@ -10,6 +10,7 @@ import { panelId, tabId, Tabs } from './components/Tabs';
 import { Terrain3D } from './components/Terrain3D';
 import { TimeBar } from './components/TimeBar';
 import { TimelineGantt } from './components/TimelineGantt';
+import { placeName } from './lib/format';
 import { summarize } from './lib/summary';
 import { useUrlSync } from './lib/useUrlSync';
 import { activeScenario, useStore } from './store';
@@ -21,7 +22,7 @@ function Summary() {
   const days = useStore((s) => activeScenario(s)?.days);
   const label = useStore((s) => activeScenario(s)?.label);
   if (!result || days === undefined) return <p className="summary muted" data-tour="summary">Working out the Sun and Earth for your sites.</p>;
-  return <p className="summary" data-tour="summary"><b>{label}.</b> {summarize(result, days).sentence}</p>;
+  return <p className="summary" data-tour="summary"><b>{placeName(label ?? '')}.</b> {summarize(result, days).sentence}</p>;
 }
 
 /** Temporary home of the solar-array choice until All numbers is redesigned (Task 12). */

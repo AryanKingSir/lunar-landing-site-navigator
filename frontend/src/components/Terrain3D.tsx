@@ -2,6 +2,7 @@ import { OrbitControls, Stars } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
+import { placeName } from '../lib/format';
 import { latLonToXY, R_MOON_M, toScene } from '../lib/projection';
 import { heightAtXY, useTerrain, type Terrain } from '../lib/terrain';
 import { indexAt } from '../lib/time';
@@ -148,7 +149,7 @@ function BodyLegend({ active }: { active: boolean }) {
   const offsetMs = useLiveOffset(active);
   if (!samples) return null;
   const i = indexAt(samples.t, samples.t[0] + offsetMs);
-  const site = (label ?? 'site').split(' (')[0];
+  const site = placeName(label ?? 'site');
   return (
     <span className="live">
       At {site} the <span style={{ color: 'var(--sun)' }}>Sun</span> is {samples.sun_frac[i] > 0 ? 'up' : 'hidden'} and <span style={{ color: 'var(--earth)' }}>Earth</span> is {samples.earth_vis[i] ? 'in view' : 'hidden'}.

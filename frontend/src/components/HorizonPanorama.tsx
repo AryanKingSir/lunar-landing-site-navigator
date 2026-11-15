@@ -1,4 +1,5 @@
 import { useId, useMemo, useState, type CSSProperties } from 'react';
+import { placeName } from '../lib/format';
 import { linear } from '../lib/scale';
 import { indexAt } from '../lib/time';
 import { activeScenario, useStore } from '../store';
@@ -55,7 +56,7 @@ export function HorizonPanorama() {
 
   return (
     <section className="panel">
-      <h2><span className="tag" style={{ '--c': sc.color } as CSSProperties}>{sc.tag}</span>Sky from {sc.label}
+      <h2><span className="tag" style={{ '--c': sc.color } as CSSProperties}>{sc.tag}</span>Sky from {placeName(sc.label)}
         <span className="spacer" />
         <select value={zoom} onChange={(e) => setZoom(e.target.value as typeof zoom)}>
           <option value="auto">Auto zoom</option><option value="horizon">Horizon (−3…12°)</option><option value="full">Full sky (−5…90°)</option>

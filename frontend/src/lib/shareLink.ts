@@ -1,3 +1,4 @@
+import { customLabel } from './format';
 import { decodeState, type View } from './urlState';
 import type { NewScenario } from '../store';
 import type { Site } from '../types';
@@ -10,8 +11,6 @@ export type ShareActions = {
   setOffset: (ms: number) => void;
 };
 
-const num = (v: number) => String(Number(v.toFixed(4)));
-
 /** Decode a share link and apply it. Returns false when there is nothing valid to apply. */
 export function applyShareLink(search: string, sites: Site[], a: ShareActions): boolean {
   const state = decodeState(search, sites);
@@ -19,7 +18,7 @@ export function applyShareLink(search: string, sites: Site[], a: ShareActions): 
   for (const sc of state.scenarios) {
     const site = sc.siteId ? sites.find((x) => x.id === sc.siteId) : undefined;
     a.addScenario({
-      label: site ? site.name : `Custom ${num(sc.lat)}°, ${num(sc.lon)}°`,
+      label: site ? site.name : customLabel(sc.lat, sc.lon),
       siteId: sc.siteId, lat: sc.lat, lon: sc.lon, start: sc.start, days: sc.days,
     });
   }

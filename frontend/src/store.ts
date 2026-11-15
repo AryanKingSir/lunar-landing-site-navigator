@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { fetchScenario, fetchSites, pingHealth } from './api';
-import { dateLabel } from './lib/format';
 import { applyShareLink } from './lib/shareLink';
 import { addDaysIso, DAY_MS } from './lib/time';
 import type { View } from './lib/urlState';
@@ -143,7 +142,7 @@ export const useStore = create<State>((set, get) => {
       const sc = get().scenarios.find((x) => x.id === id);
       if (!sc) return;
       get().addScenario({
-        label: `${get().sites.find((x) => x.id === sc.siteId)?.name ?? sc.label}, ${dateLabel(addDaysIso(sc.start, days))}`, siteId: sc.siteId, lat: sc.lat, lon: sc.lon,
+        label: sc.label, siteId: sc.siteId, lat: sc.lat, lon: sc.lon,
         start: addDaysIso(sc.start, days), days: sc.days,
       });
     },

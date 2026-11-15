@@ -234,11 +234,18 @@ describe('tags, view, events, tutorial', () => {
     g.resetTutorial();
     expect(useStore.getState().tutorial.completed).toEqual([]);
   });
-  it('duplicateShifted labels with the new date', () => {
+  it('duplicateShifted keeps the place name as the label and moves the start', () => {
     useStore.setState({ sites: SITES });
     useStore.getState().addScenario({ ...base, label: 'Apollo 11', siteId: 'apollo11', days: 10 });
     useStore.getState().duplicateShifted(useStore.getState().scenarios[0].id, 30);
-    expect(useStore.getState().scenarios[1].label).toBe('Apollo 11, 31 Dec 2026');
+    expect(useStore.getState().scenarios[1].label).toBe('Apollo 11');
+    expect(useStore.getState().scenarios[1].start).toBe('2026-12-31T00:00:00Z');
+  });
+  it('duplicating a custom spot twice does not pile dates into the label', () => {
+    useStore.getState().addScenario({ ...base, label: 'Custom -87.5°, 45°', days: 10 });
+    useStore.getState().duplicateShifted(useStore.getState().scenarios[0].id, 30);
+    useStore.getState().duplicateShifted(useStore.getState().scenarios[1].id, 30);
+    expect(useStore.getState().scenarios.map((x) => x.label)).toEqual(['Custom -87.5°, 45°', 'Custom -87.5°, 45°', 'Custom -87.5°, 45°']);
   });
   it('updateScenario clears the old result, re-runs and re-clamps the offset', async () => {
     add('a');

@@ -28,3 +28,14 @@ export function utcLabel(ms: number): string {
   const d = new Date(ms);
   return `${dateLabel(d.toISOString())}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
 }
+
+/** The place a scenario is at, without the bracketed detail: "Connecting Ridge (Shackleton–de Gerlache)" -> "Connecting Ridge". */
+export function placeName(label: string): string {
+  return label.split(' (')[0];
+}
+
+const coord = (v: number) => String(Number(v.toFixed(4)));
+/** Label of a spot picked by coordinates: "Custom -87.5°, 45°". */
+export function customLabel(lat: number, lon: number): string {
+  return `Custom ${coord(lat)}°, ${coord(lon)}°`;
+}
