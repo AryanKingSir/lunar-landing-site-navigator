@@ -1,10 +1,10 @@
 import { AbsoluteFill, Audio, Img, interpolate, Sequence as Seq, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import cuesJson from '../../assets/cues.json';
-import { BrowserFrame, C, Camera, Caption, center, Cursor, fitZoom, Sequence, Stage, Stills, tween, VIEW, type Box } from './kit';
+import { BrowserFrame, C, Camera, Caption, center, ClickSound, Cursor, fitZoom, Sequence, Stage, Stills, tween, VIEW, type Box } from './kit';
 
 type Cues = {
   compare: { addSite: Box; shackleton: Box; addButton: Box; summary: Box };
-  slip: { menuButton: Box; landLater: Box; summary: Box };
+  energy: { tab: Box; rows: Box; scrollFrames: number };
   share: { share: Box };
   sky: { pano: Box; caption: Box; frames: number };
   terrain: { wrap: Box; frames: number };
@@ -13,16 +13,21 @@ const cues = cuesJson as unknown as Cues;
 const PAGE_C = { x: VIEW.w / 2, y: VIEW.h / 2 };
 const OFF = { x: VIEW.w + 60, y: VIEW.h * 0.75 };
 
-export type AudioProps = { vo: (string | null)[]; music: string | null; voGain: number; musicGain: number };
+export type AudioProps = {
+  vo: (string | null)[]; voDur: number[]; music: string | null; click: string | null;
+  voGain: number; musicGain: number; duckGain: number;
+};
 export const SCENES = [
-  { id: 'intro', frames: 240 },
-  { id: 'compare', frames: 360 },
+  { id: 'intro', frames: 260 },
+  { id: 'compare', frames: 340 },
   { id: 'sky', frames: 360 },
   { id: 'terrain', frames: 360 },
-  { id: 'slip', frames: 300 },
+  { id: 'energy', frames: 300 },
   { id: 'share', frames: 250 },
 ] as const;
 const FADE = 14; // crossfade between scenes
+const VO_AT = [12, 16, 10, 14, 16, 8]; // voice line start, frames into its scene
+const STARTS = SCENES.map((_, i) => SCENES.slice(0, i).reduce((n, s) => n + s.frames - FADE, 0));
 
 /** Fades a scene in over its first frames (scenes overlap by FADE). */
 function SceneFade({ children, first }: { children: React.ReactNode; first?: boolean }) {
@@ -104,20 +109,27 @@ function Terrain() {
   );
 }
 
-function Slip() {
+function Energy() {
   const frame = useCurrentFrame();
-  const c = cues.slip;
-  const zoom = tween(frame, 160, 222, 1, fitZoom(c.summary));
-  const focus = { x: tween(frame, 160, 222, PAGE_C.x, center(c.summary).x), y: tween(frame, 160, 222, PAGE_C.y, center(c.summary).y + 20) };
+  const c = cues.energy;
+  const zoom = tween(frame, 150, 240, 1, 1.08);
+  const focus = { x: tween(frame, 150, 240, PAGE_C.x, center(c.rows).x), y: tween(frame, 150, 240, PAGE_C.y, center(c.rows).y) };
+  const numbers = interpolate(frame, [74, 79], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const mark = tween(frame, 150, 172, 0, 1);
+  const pad = 10;
   return (
     <Stage>
       <BrowserFrame>
         <Camera z={zoom} focus={focus}>
-          <Stills items={[[0, 'slip/a-start.jpg'], [84, 'slip/b-menu.jpg'], [148, 'slip/c-after.jpg']]} />
-          <Cursor z={zoom} clicks={[78, 142]} path={[[18, OFF], [70, center(c.menuButton)], [92, center(c.menuButton)], [136, center(c.landLater)], [170, center(c.landLater)], [220, OFF]]} />
+          <Stills items={[[0, 'energy/a-start.jpg']]} />
+          {numbers > 0 && <div style={{ position: 'absolute', inset: 0, opacity: numbers }}><Sequence dir="energy/scroll" count={c.scrollFrames} offset={92} /></div>}
+          <div style={{ position: 'absolute', left: c.rows.x - pad, top: c.rows.y - pad / 2, width: c.rows.w + 2 * pad, height: c.rows.h + pad,
+            borderRadius: 10, background: 'rgba(240,165,42,0.18)', boxShadow: `0 0 0 2px ${C.sun}`, mixBlendMode: 'multiply',
+            opacity: mark, transform: `scale(${0.98 + 0.02 * mark})` }} />
+          <Cursor z={zoom} clicks={[68]} path={[[14, OFF], [62, center(c.tab)], [84, center(c.tab)], [130, OFF]]} />
         </Camera>
       </BrowserFrame>
-      <Caption text="Launch slips? Compare instantly." from={14} />
+      <Caption text="Solar energy, site by site." from={14} />
     </Stage>
   );
 }
@@ -148,25 +160,32 @@ function Share() {
   );
 }
 
-const VIEWS = { intro: Intro, compare: Compare, sky: Sky, terrain: Terrain, slip: Slip, share: Share };
+const VIEWS = { intro: Intro, compare: Compare, sky: Sky, terrain: Terrain, energy: Energy, share: Share };
 
-export function Main({ vo, music, voGain, musicGain }: AudioProps) {
-  let at = 0;
+export function Main({ vo, voDur, music, click, voGain, musicGain, duckGain }: AudioProps) {
+  const { fps } = useVideoConfig();
+  const spans = vo.map((v, i) => (v ? [STARTS[i] + VO_AT[i], STARTS[i] + VO_AT[i] + voDur[i] * fps] : null)).filter(Boolean) as number[][];
+  // Music: fade in/out, ducked to duckGain while a line plays (12-frame ramps).
+  const musicVol = (f: number) => {
+    const talk = Math.max(0, ...spans.map(([a, b]) => interpolate(f, [a - 12, a, b, b + 12], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })));
+    const edge = interpolate(f, [0, 30, TOTAL - 60, TOTAL], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+    return edge * (musicGain + (duckGain - musicGain) * talk);
+  };
   return (
-    <AbsoluteFill style={{ background: C.page }}>
-      {SCENES.map((s, i) => {
-        const from = i === 0 ? 0 : at - FADE;
-        at = from + s.frames;
-        const View = VIEWS[s.id];
-        return (
-          <Seq key={s.id} from={from} durationInFrames={s.frames + (i === SCENES.length - 1 ? 0 : FADE)}>
-            <SceneFade first={i === 0}><View /></SceneFade>
-            {vo[i] && <Audio src={staticFile(vo[i]!)} volume={voGain} />}
-          </Seq>
-        );
-      })}
-      {music && <Audio src={staticFile(music)} volume={(f) => musicGain * interpolate(f, [0, 30, 1740, 1800], [0, 1, 1, 0], { extrapolateRight: 'clamp' })} />}
-    </AbsoluteFill>
+    <ClickSound.Provider value={click}>
+      <AbsoluteFill style={{ background: C.page }}>
+        {SCENES.map((s, i) => {
+          const View = VIEWS[s.id];
+          return (
+            <Seq key={s.id} from={STARTS[i]} durationInFrames={s.frames + (i === SCENES.length - 1 ? 0 : FADE)}>
+              <SceneFade first={i === 0}><View /></SceneFade>
+              {vo[i] && <Seq from={VO_AT[i]} layout="none"><Audio src={staticFile(vo[i]!)} volume={voGain} /></Seq>}
+            </Seq>
+          );
+        })}
+        {music && <Audio src={staticFile(music)} volume={musicVol} />}
+      </AbsoluteFill>
+    </ClickSound.Provider>
   );
 }
 

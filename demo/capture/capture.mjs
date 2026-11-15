@@ -125,24 +125,36 @@ const scenes = {
     await page.context().close();
   },
 
-  /** Scene 5: chip menu → land a month later → 3 columns. */
-  async slip() {
+  /** Scene 5: open All numbers → solar power and energy per site. */
+  async energy() {
     const page = await newPage();
-    await page.goto(link(['connecting-ridge', 'apollo11']), { waitUntil: 'domcontentloaded' });
+    await page.goto(link(['connecting-ridge', 'apollo11', 'shackleton-floor']), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => (document.querySelector('[data-tour=summary]')?.innerText ?? '').includes('%')
+      && !document.body.innerText.includes('Computing'), null, { timeout: 90_000 });
     await settle(page, 1000);
-    await still(page, 'slip', 'a-start');
-    const c = { menuButton: await box(page, '[data-tour=chip-menu]') };
-    await page.locator('[data-tour=chip-menu]').click();
-    await page.waitForTimeout(400);
-    await page.mouse.move(VIEW.width - 2, 2);
-    await still(page, 'slip', 'b-menu');
-    c.landLater = await box(page, '[role=menuitem]:has-text("Land a month later")');
-    await page.locator('[role=menuitem]', { hasText: 'Land a month later' }).click();
-    await page.waitForTimeout(400);
-    await settle(page, 1200);
-    await still(page, 'slip', 'c-after');
-    c.summary = await box(page, '[data-tour=summary]');
-    cues.slip = c; saveCues();
+    await still(page, 'energy', 'a-start');
+    const c = { tab: await box(page, '[data-tour=tab-numbers]') };
+    await page.locator('[data-tour=tab-numbers]').click();
+    await settle(page, 800);
+    // Smooth eased scroll down to the power and energy rows, one capture per video frame.
+    const target = await page.evaluate(() => {
+      const r = [...document.querySelectorAll('tr')].find((t) => t.textContent.includes('Energy over the period'));
+      return Math.max(0, Math.round(r.getBoundingClientRect().bottom + window.scrollY - window.innerHeight + 180));
+    });
+    const dir = path.join(OUT, 'energy', 'scroll'); fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
+    const n = 48;
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      await page.evaluate((y) => window.scrollTo(0, y), Math.round(target * e));
+      await page.evaluate(frames);
+      await page.screenshot({ path: path.join(dir, `f${String(i).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 92 });
+    }
+    c.scrollFrames = n;
+    const p = await box(page, 'tr:has(th:has-text("Average power over the period"))');
+    const e = await box(page, 'tr:has(th:has-text("Energy over the period"))');
+    c.rows = { x: p.x, y: p.y, w: p.w, h: e.y + e.h - p.y };
+    c.scrollY = await page.evaluate(() => window.scrollY);
+    cues.energy = c; saveCues();
     await page.context().close();
   },
 
