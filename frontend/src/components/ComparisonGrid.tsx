@@ -1,3 +1,4 @@
+import { StageSkeleton } from './Skeleton';
 import type { CSSProperties } from 'react';
 import { dayLabel } from '../lib/format';
 import { formatDuration, HOUR_MS, indexAt, rangeEndOf, windowStatus } from '../lib/time';
@@ -42,7 +43,7 @@ export function ComparisonGrid() {
   const offsetMs = useStore((s) => s.offsetMs);
   const explain = useStore((s) => s.explain);
   const ready = scenarios.filter((s) => s.result);
-  if (ready.length === 0) return <section className="panel"><h2>All numbers</h2><p className="muted">Working out the numbers for your sites.</p></section>;
+  if (ready.length === 0) return <section className="panel"><h2>All numbers</h2><StageSkeleton label="Working out the numbers for your sites." /></section>;
   return (
     <section className="panel">
       <h2>All numbers at {dayLabel(offsetMs)}</h2>

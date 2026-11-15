@@ -5,24 +5,14 @@ import { Header } from './components/Header';
 import { HorizonPanorama } from './components/HorizonPanorama';
 import { StatusBanner } from './components/StatusBanner';
 import { SiteChips } from './components/SiteChips';
+import { SummaryStrip } from './components/SummaryStrip';
 import { panelId, tabId, Tabs } from './components/Tabs';
 import { Terrain3D } from './components/Terrain3D';
 import { TimeBar } from './components/TimeBar';
 import { TimelineGantt } from './components/TimelineGantt';
-import { placeName } from './lib/format';
-import { summarize } from './lib/summary';
 import { useUrlSync } from './lib/useUrlSync';
-import { activeScenario, useStore } from './store';
+import { useStore } from './store';
 import type { PanelMode } from './types';
-
-/** Placeholder until Task 9: the active site's plain-words summary. */
-function Summary() {
-  const result = useStore((s) => activeScenario(s)?.result);
-  const days = useStore((s) => activeScenario(s)?.days);
-  const label = useStore((s) => activeScenario(s)?.label);
-  if (!result || days === undefined) return <p className="summary muted" data-tour="summary">Working out the Sun and Earth for your sites.</p>;
-  return <p className="summary" data-tour="summary"><b>{placeName(label ?? '')}.</b> {summarize(result, days).sentence}</p>;
-}
 
 /** Temporary home of the solar-array choice until All numbers is redesigned (Task 12). */
 function SolarArraySelect() {
@@ -61,7 +51,7 @@ export default function App() {
         <Header />
         <StatusBanner />
         <SiteChips />
-        <Summary />
+        <SummaryStrip />
         {explain && <ExplainPanel />}
         <div>
           <Tabs />

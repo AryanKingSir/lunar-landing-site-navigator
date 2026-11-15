@@ -1,3 +1,4 @@
+import { StageSkeleton } from './Skeleton';
 import { useId, useMemo, useState, type CSSProperties } from 'react';
 import { placeName } from '../lib/format';
 import { linear } from '../lib/scale';
@@ -48,7 +49,13 @@ export function HorizonPanorama() {
     };
   }, [S, horizon, lat, zoom]);
 
-  if (!sc?.result || !geo || !S) return <section className="panel"><h2>Sky view</h2><p className="muted">{sc?.loading ? 'Working out the sky for this site.' : 'Pick a site to see its sky.'}</p></section>;
+  if (!sc?.result || !geo || !S) {
+    return (
+      <section className="panel"><h2>Sky view</h2>
+        {sc && !sc.error ? <StageSkeleton label="Working out the sky for this site." /> : <p className="muted">{sc?.error ? 'The sky for this site could not be worked out.' : 'Pick a site to see its sky.'}</p>}
+      </section>
+    );
+  }
 
   const r = sc.result;
   const i = indexAt(S.t, S.t[0] + offsetMs);
