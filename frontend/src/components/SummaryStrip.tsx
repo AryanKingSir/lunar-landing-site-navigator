@@ -31,7 +31,7 @@ export function SummaryStrip() {
 
   if (scenarios.length === 0) return <section className="summary-strip" data-tour="summary" aria-label="Summary" />;
   return (
-    <section className="summary-strip" data-tour="summary" aria-label="Summary"
+    <section className="summary-strip" data-tour="summary" aria-label="Summary" data-cols={scenarios.length}
              style={{ '--cols': scenarios.length } as CSSProperties}>
       {scenarios.map((sc, i) => {
         const sum = sums[i];

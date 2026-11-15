@@ -4,6 +4,16 @@ import { encodeState } from './urlState';
 
 export const URL_THROTTLE_MS = 500;
 
+/** The share-link query string for what is on screen now. */
+export function currentQuery(): string {
+  const s = useStore.getState();
+  return encodeState({
+    scenarios: s.scenarios.map((x) => ({ siteId: x.siteId, lat: x.lat, lon: x.lon, start: x.start, days: x.days })),
+    offsetMs: s.offsetMs, view: s.view,
+    active: Math.max(0, s.scenarios.findIndex((x) => x.id === s.activeId)),
+  });
+}
+
 /** Writes the current state to the address bar as it changes (throttled, not while playing). */
 export function useUrlSync(): void {
   useEffect(() => {
@@ -14,11 +24,7 @@ export function useUrlSync(): void {
       const s = useStore.getState();
       if (s.playing || s.scenarios.length === 0) return;
       last = Date.now();
-      const qs = encodeState({
-        scenarios: s.scenarios.map((x) => ({ siteId: x.siteId, lat: x.lat, lon: x.lon, start: x.start, days: x.days })),
-        offsetMs: s.offsetMs, view: s.view,
-        active: Math.max(0, s.scenarios.findIndex((x) => x.id === s.activeId)),
-      });
+      const qs = currentQuery();
       history.replaceState(null, '', `${location.pathname}?${qs}${location.hash}`);
     };
     const schedule = () => {

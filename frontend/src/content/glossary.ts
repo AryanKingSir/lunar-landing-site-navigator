@@ -1,0 +1,15 @@
+export const GLOSSARY: { term: string; text: string }[] = [
+  { term: 'Sunlight', text: 'The share of the period when at least part of the Sun is above the real terrain around the site. Solar panels need it.' },
+  { term: 'Earth in view', text: 'The share of the period when at least half of Earth’s disk is above the terrain. A lander can only radio Earth directly when it can see it.' },
+  { term: 'Radio link to Earth (DTE)', text: 'Direct-to-Earth contact: Earth is in view from the site and a Deep Space Network antenna can see the Moon at the same time.' },
+  { term: 'Deep Space Network (DSN)', text: 'NASA’s three big antenna sites in California, Spain and Australia. Between them one can almost always see the Moon.' },
+  { term: 'Level horizon', text: 'The 0° line you would see on a perfectly flat Moon. Hills and crater walls make the real horizon higher or lower.' },
+  { term: 'Terrain horizon', text: 'The skyline traced from real elevation data in every direction around the site, out to 150 km, including the curve of the Moon.' },
+  { term: 'LOLA', text: 'The Lunar Orbiter Laser Altimeter on NASA’s Lunar Reconnaissance Orbiter. It measured the height of the lunar surface with a laser.' },
+  { term: 'Permanently shadowed region (PSR)', text: 'A crater floor near the pole where the Sun never rises above the surrounding walls. Ice can survive there.' },
+  { term: 'Lunation', text: 'One cycle of lunar day and night as seen from the Moon: about 29.5 Earth days.' },
+  { term: 'Libration', text: 'A slow monthly wobble in how the Moon faces Earth. From the pole it makes Earth rise and set by several degrees.' },
+  { term: 'Elevation', text: 'How high something is above the level horizon, in degrees.' },
+  { term: 'Azimuth or bearing', text: 'The compass direction of something, in degrees from north towards east.' },
+  { term: 'Mission day', text: 'Days since the landing date you chose. Day 0 is landing day.' },
+];

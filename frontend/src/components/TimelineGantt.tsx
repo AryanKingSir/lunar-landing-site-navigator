@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { MouseEvent } from 'react';
+import { dateLabel, placeName } from '../lib/format';
 import { linear } from '../lib/scale';
 import { DAY_MS } from '../lib/time';
 import { maxDurationMs, useStore } from '../store';
@@ -17,9 +18,11 @@ export function TimelineGantt() {
   const offsetMs = useStore((s) => s.offsetMs);
   const setOffset = useStore((s) => s.setOffset);
   const maxMs = useStore(maxDurationMs);
+  const noteEvent = useStore((s) => s.noteEvent);
 
   const geo = useMemo(() => {
     const scenarios = allScenarios.filter((s) => s.result);
+    const dup = new Set(allScenarios.map((s) => placeName(s.label))).size < allScenarios.length;
     if (scenarios.length === 0 || maxMs === 0) return null;
     const x = linear(0, maxMs, LABEL, W);
     const groupH = HEAD + LANES.length * (ROW + GAP) + GROUP_GAP;
@@ -39,7 +42,7 @@ export function TimelineGantt() {
         <g key={`${s.id}-head`}>
           <rect x={0} y={gy + 2} width={16} height={16} rx={3} fill={s.color} />
           <text x={8} y={gy + 14} textAnchor="middle" style={{ fill: '#fff', fontWeight: 700, fontSize: 11 }}>{s.tag}</text>
-          <text x={24} y={gy + 15} className="halo" style={{ fill: 'var(--ink)', fontWeight: 600 }}>{s.label}</text>
+          <text x={24} y={gy + 15} className="halo" style={{ fill: 'var(--ink)', fontWeight: 600 }}>{placeName(s.label)}{dup ? `, landing ${dateLabel(s.start)}` : ''}</text>
         </g>
       );
     });
@@ -72,13 +75,17 @@ export function TimelineGantt() {
   const click = (e: MouseEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const vx = ((e.clientX - r.left) / r.width) * W;
-    if (vx >= LABEL) setOffset(((vx - LABEL) / (W - LABEL)) * maxMs);
+    if (vx >= LABEL) { setOffset(((vx - LABEL) / (W - LABEL)) * maxMs); noteEvent('timeline-seek'); }
   };
 
   return (
     <section className="panel">
       <h2>Timeline</h2>
       <p className="view-note">Days since each site’s landing date. Click anywhere on the bars to jump to that moment.</p>
+      <ul className="tl-legend" aria-label="Legend">
+        {LANES.map((l) => <li key={l.key}><span className="key" style={{ background: l.color }} />{l.label}</li>)}
+        <li><span className="key cursor" />The moment shown in the other views</li>
+      </ul>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" onClick={click} style={{ cursor: 'pointer' }}>
         {grid}
         {lanes}

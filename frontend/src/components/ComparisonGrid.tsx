@@ -41,7 +41,6 @@ function status(sc: Scenario, offsetMs: number, windows: Win[], up: string, down
 export function ComparisonGrid() {
   const scenarios = useStore((s) => s.scenarios);
   const offsetMs = useStore((s) => s.offsetMs);
-  const explain = useStore((s) => s.explain);
   const ready = scenarios.filter((s) => s.result);
   if (ready.length === 0) {
     const anyLoading = scenarios.some((s) => s.loading);
@@ -77,7 +76,7 @@ export function ComparisonGrid() {
             const b = best(vals, r.better);
             return (
               <tr key={r.key} title={r.tip}>
-                <td>{r.label}{explain && <span className="explain-note">{r.tip}</span>}</td>
+                <td>{r.label}</td>
                 {ready.map((s, i) => <td key={s.id} className={b !== null && vals[i] === b ? 'best' : undefined}>{r.fmt(vals[i])}</td>)}
               </tr>
             );

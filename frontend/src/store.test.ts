@@ -228,11 +228,22 @@ describe('tags, view, events, tutorial', () => {
   it('tutorial actions', () => {
     const g = useStore.getState();
     g.openTutorial(); g.completeTask('share'); g.completeTask('share');
-    expect(useStore.getState().tutorial).toEqual({ open: true, completed: ['share'] });
+    expect(useStore.getState().tutorial).toMatchObject({ open: true, completed: ['share'] });
     g.closeTutorial();
-    expect(useStore.getState().tutorial.open).toBe(false);
+    expect(useStore.getState().tutorial).toMatchObject({ open: false, dismissed: true });
     g.resetTutorial();
-    expect(useStore.getState().tutorial.completed).toEqual([]);
+    expect(useStore.getState().tutorial).toMatchObject({ completed: [], dismissed: false });
+  });
+  it('startTutorial resets to the two example sites, the sky view and day 0', () => {
+    useStore.setState({ sites: SITES });
+    useStore.getState().addScenario({ ...base, label: 'Apollo 11', siteId: 'apollo11', days: 10 });
+    useStore.setState({ view: 'numbers', offsetMs: 5e8 });
+    useStore.getState().startTutorial();
+    const st = useStore.getState();
+    expect(st.tutorial).toMatchObject({ open: true, completed: [] });
+    expect(st.view).toBe('sky');
+    expect(st.offsetMs).toBe(0);
+    expect(st.scenarios.map((x) => x.siteId)).toEqual(SITES.filter((x) => ['connecting-ridge', 'apollo11'].includes(x.id)).map((x) => x.id).sort((a, b) => (a === 'connecting-ridge' ? -1 : b === 'connecting-ridge' ? 1 : 0)));
   });
   it('duplicateShifted keeps the place name as the label and moves the start', () => {
     useStore.setState({ sites: SITES });

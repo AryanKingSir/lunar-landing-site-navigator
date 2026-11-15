@@ -21,18 +21,33 @@ export type Scenario = {
   id: string; label: string; siteId: string | null; lat: number; lon: number;
   start: string; days: number; tag: Tag; color: string; loading: boolean; error?: string; result?: ScenarioResult;
 };
-export type Tutorial = { open: boolean; completed: string[] };
+export type Tutorial = { open: boolean; completed: string[]; dismissed: boolean };
+
+const TUTORIAL_KEY = 'llsn.tutorial.v1';
+function loadTutorial(): Tutorial {
+  try {
+    const raw = typeof localStorage === 'undefined' ? null : localStorage.getItem(TUTORIAL_KEY);
+    const v = raw ? JSON.parse(raw) : null;
+    if (v && Array.isArray(v.completed)) return { open: false, completed: v.completed.filter((x: unknown) => typeof x === 'string'), dismissed: !!v.dismissed };
+  } catch { /* storage unavailable */ }
+  return { open: false, completed: [], dismissed: false };
+}
+function saveTutorial(t: Tutorial): Tutorial {
+  try { localStorage.setItem(TUTORIAL_KEY, JSON.stringify({ completed: t.completed, dismissed: t.dismissed })); } catch { /* ignore */ }
+  return t;
+}
 export type NewScenario = Pick<Scenario, 'label' | 'siteId' | 'lat' | 'lon' | 'start' | 'days'>;
 
 type State = {
   sites: Site[]; scenarios: Scenario[]; activeId: string | null; offsetMs: number;
-  playing: boolean; speedHoursPerSec: number; explain: boolean; panelMode: PanelMode; exaggeration: number;
+  playing: boolean; speedHoursPerSec: number; panelMode: PanelMode; exaggeration: number;
   server: ServerStatus; sitesError: string | null;
   view: View; setView: (v: View) => void;
   updateScenario: (id: string, patch: Partial<Pick<Scenario, 'start' | 'days'>>) => void;
   events: Record<string, number>; noteEvent: (name: 'timeline-seek' | 'link-copied') => void;
   tutorial: Tutorial;
   openTutorial: () => void; closeTutorial: () => void; completeTask: (id: string) => void; resetTutorial: () => void;
+  startTutorial: () => void;
   wakeServer: () => Promise<void>;
   start: () => Promise<void>;
   seedDefaults: () => void;
@@ -45,7 +60,6 @@ type State = {
   setOffset: (ms: number) => void;
   setPlaying: (p: boolean) => void;
   setSpeed: (h: number) => void;
-  toggleExplain: () => void;
   setPanelMode: (m: PanelMode) => void;
   setExaggeration: (x: number) => void;
   runScenario: (id: string) => Promise<void>;
@@ -56,22 +70,36 @@ let wakeLoop: Promise<void> | null = null;
 const latestRequest = new Map<string, number>();
 
 export const useStore = create<State>((set, get) => {
+  const addDefaults = () => {
+    const { sites, addScenario } = get();
+    for (const id of ['connecting-ridge', 'apollo11']) {
+      const s = sites.find((x) => x.id === id);
+      if (s) addScenario({ label: s.name, siteId: s.id, lat: s.lat, lon: s.lon, start: DEFAULT_START, days: 30 });
+    }
+  };
   const patch = (id: string, p: Partial<Scenario>) =>
     set((st) => ({ scenarios: st.scenarios.map((x) => (x.id === id ? { ...x, ...p } : x)) }));
 
   return {
     sites: [], scenarios: [], activeId: null, offsetMs: 0, playing: false,
-    speedHoursPerSec: 6, explain: false, panelMode: 'vertical-tracking', exaggeration: 1,
+    speedHoursPerSec: 6, panelMode: 'vertical-tracking', exaggeration: 1,
 
     server: 'checking', sitesError: null,
-    view: 'sky', events: {}, tutorial: { open: false, completed: [] },
+    view: 'sky', events: {}, tutorial: loadTutorial(),
     setView: (v) => set({ view: v }),
     noteEvent: (name) => set((st) => ({ events: { ...st.events, [name]: (st.events[name] ?? 0) + 1 } })),
     openTutorial: () => set((st) => ({ tutorial: { ...st.tutorial, open: true } })),
-    closeTutorial: () => set((st) => ({ tutorial: { ...st.tutorial, open: false } })),
+    closeTutorial: () => set((st) => ({ tutorial: saveTutorial({ ...st.tutorial, open: false, dismissed: true }) })),
     completeTask: (id) =>
-      set((st) => (st.tutorial.completed.includes(id) ? st : { tutorial: { ...st.tutorial, completed: [...st.tutorial.completed, id] } })),
-    resetTutorial: () => set({ tutorial: { open: false, completed: [] } }),
+      set((st) => (st.tutorial.completed.includes(id) ? st : { tutorial: saveTutorial({ ...st.tutorial, completed: [...st.tutorial.completed, id] }) })),
+    resetTutorial: () => set({ tutorial: saveTutorial({ open: false, completed: [], dismissed: false }) }),
+    startTutorial: () => {
+      const st = get();
+      st.setPlaying(false);
+      for (const sc of [...st.scenarios]) get().removeScenario(sc.id);
+      addDefaults();
+      set({ view: 'sky', offsetMs: 0, tutorial: saveTutorial({ open: true, completed: [], dismissed: false }) });
+    },
 
     wakeServer: () => {
       if (wakeLoop) return wakeLoop;
@@ -97,7 +125,11 @@ export const useStore = create<State>((set, get) => {
       await get().wakeServer();
       if (get().server !== 'ok') return;
       await get().loadSites();
-      if (!get().sitesError) get().seedDefaults();
+      if (get().sitesError) return;
+      get().seedDefaults();
+      const hasLink = typeof location !== 'undefined' && /[?&]s=/.test(location.search);
+      const t = get().tutorial;
+      if (!hasLink && !t.dismissed && t.completed.length < 8) set({ tutorial: { ...t, open: true } });
     },
 
     seedDefaults: () => {
@@ -109,10 +141,7 @@ export const useStore = create<State>((set, get) => {
         setView: get().setView, setActive: get().setActive, setOffset: get().setOffset,
       });
       if (restored) return;
-      for (const id of ['connecting-ridge', 'apollo11']) {
-        const s = sites.find((x) => x.id === id);
-        if (s) addScenario({ label: s.name, siteId: s.id, lat: s.lat, lon: s.lon, start: DEFAULT_START, days: 30 });
-      }
+      addDefaults();
     },
 
     retryAll: async () => {
@@ -174,7 +203,6 @@ export const useStore = create<State>((set, get) => {
     setOffset: (ms) => set({ offsetMs: Math.max(0, Math.min(ms, maxDurationMs(get()))) }),
     setPlaying: (p) => set({ playing: p }),
     setSpeed: (h) => set({ speedHoursPerSec: h }),
-    toggleExplain: () => set((st) => ({ explain: !st.explain })),
     setPanelMode: (m) => {
       set({ panelMode: m });
       get().scenarios.forEach((s) => void get().runScenario(s.id));
