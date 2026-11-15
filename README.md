@@ -95,6 +95,11 @@ npx vitest run       # tests
 - [LROC Quickmap](https://quickmap.lroc.asu.edu/)
 - [NASA Moon Trek](https://trek.nasa.gov/moon/)
 
+## Use of AI
+
+- **Code and docs:** our team set the requirements, made the design decisions and tested the app. Most of the code and documentation was written with Anthropic's Claude (Claude Code) as a coding assistant; those commits carry `Co-Authored-By: Claude`. Results were checked against NASA JPL Horizons and published values (see [docs/methodology.md](docs/methodology.md)).
+- **Demo video:** the narration and sound are AI-generated with ElevenLabs. The app footage is real screen capture of the live site.
+
 ## Licence
 
 Apache-2.0. See [LICENSE](LICENSE).
