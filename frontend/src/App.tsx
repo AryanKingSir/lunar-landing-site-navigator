@@ -12,24 +12,6 @@ import { TimelineGantt } from './components/TimelineGantt';
 import { Tutorial } from './components/Tutorial';
 import { useUrlSync } from './lib/useUrlSync';
 import { useStore } from './store';
-import type { PanelMode } from './types';
-
-/** Temporary home of the solar-array choice until All numbers is redesigned (Task 12). */
-function SolarArraySelect() {
-  const panelMode = useStore((s) => s.panelMode);
-  const setPanelMode = useStore((s) => s.setPanelMode);
-  return (
-    <div className="numbers-controls">
-      <label>Solar array
-        <select value={panelMode} onChange={(e) => setPanelMode(e.target.value as PanelMode)}>
-          <option value="vertical-tracking">Vertical, Sun-tracking</option>
-          <option value="horizontal">Horizontal (deck-mounted)</option>
-          <option value="fixed-vertical">Vertical, fixed facing north</option>
-        </select>
-      </label>
-    </div>
-  );
-}
 
 export default function App() {
   const start = useStore((s) => s.start);
@@ -62,7 +44,7 @@ export default function App() {
               </div>
             )}
             {view === 'timeline' && <TimelineGantt />}
-            {view === 'numbers' && <><SolarArraySelect /><ComparisonGrid /></>}
+            {view === 'numbers' && <ComparisonGrid />}
           </div>
         </div>
       </div>

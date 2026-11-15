@@ -441,3 +441,12 @@ table.compare td.best { font-weight: 700; }
   .summary-strip[data-cols="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .summary-strip[data-cols="3"] .sum-col:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--hairline); }
 }
+.numbers .numbers-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 4px 0 16px; }
+.numbers .numbers-controls label { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+table.compare tr.group th { text-align: left; font-size: var(--fs-small); font-weight: 700; color: var(--ink); padding-top: 18px; border-bottom: 1px solid var(--hairline); }
+table.compare tbody th[scope=row] { text-align: left; font-weight: 400; color: var(--ink-soft); }
+table.compare abbr { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+table.compare .col-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+table.compare .csv { margin-top: 6px; min-height: 36px; padding: 4px 10px; font-size: var(--fs-small); }
+table.compare td .most { margin-left: 8px; }
+.numbers table.compare th, .numbers table.compare td { text-align: left; }
