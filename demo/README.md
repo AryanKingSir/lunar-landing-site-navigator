@@ -25,7 +25,7 @@ npm install
 npx playwright install chromium      # once
 node capture/capture.mjs             # all scenes + intro skyline (horizon), or e.g. `node capture/capture.mjs energy share`
 source audio/key.sh                  # ELEVENLABS_API_KEY (from the env, or the elevenlabs MCP entry in ~/.claude.json)
-node audio/voice.mjs hpp4J3VqNfWAUOO0d1Us:bella    # lines from video/timing.json → assets/vo/bella/
+node audio/voice.mjs cgSgspJ2msm6clMCkdW9:jessica:1.05   # lines from video/timing.json → assets/vo/jessica/ (optional :speed)
 node video/render.mjs                # mixes assets/soundtrack.wav, then renders; add --draft for a fast half-size preview
 npm run studio                       # live preview in Remotion Studio
 ```
@@ -34,7 +34,7 @@ npm run studio                       # live preview in Remotion Studio
 
 `audio/mix.py` builds the whole soundtrack sample-accurately (macOS `afconvert` + numpy), and Remotion just plays that one track:
 
-- **Voice:** each line has the TTS mouth-click artefacts in its pauses removed, is levelled to the same loudness, and is placed at its scene's `voAt`.
+- **Voice:** each line has its silent start and end trimmed, pauses longer than 0.32 s shortened, and the TTS mouth-click artefacts in its pauses removed. Each line is levelled to the same loudness, and is placed at its scene's `voAt`.
 - **Music bed:** fades in and out, and ducks smoothly under the voice.
 - **Clicks:** each cursor click gets a short synthesised tick.
 - **Peaks:** a soft limiter keeps them under -1 dBFS.
@@ -51,9 +51,9 @@ Lara (`vChnJZ1Cu89g2XXumPfT`) is a Voice Library voice, and the ElevenLabs API o
   2. In Text to Speech (Multilingual v2), generate each `line` from `video/timing.json`.
   3. Save the files as `assets/vo/lara/line-1.mp3` … `line-6.mp3`.
 
-`node video/render.mjs` uses `lara` automatically when those files exist (otherwise `bella`; or pass `--voice=<name>`).
+`node video/render.mjs` uses `lara` automatically when those files exist (otherwise `jessica`; or pass `--voice=<name>`).
 
-Other generated voices are in `assets/vo/` (alice and george read the previous script). The music bed (`assets/music.mp3`) comes from the ElevenLabs sound-effects API; the music API needs a paid plan.
+Other generated voices are in `assets/vo/`: bella reads the current script; alice and george read the previous one. The music bed (`assets/music.mp3`) comes from the ElevenLabs sound-effects API; the music API needs a paid plan.
 
 ## YouTube
 

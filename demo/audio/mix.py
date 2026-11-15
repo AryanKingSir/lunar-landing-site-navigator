@@ -1,6 +1,6 @@
 """Builds the whole soundtrack sample-accurately, so Remotion only has to play one finished track.
 
-Voice lines are gated (pauses silenced), levelled and placed at their scene's `voAt`; the music bed fades in and out and ducks
+Voice lines are tightened (long pauses shortened), de-clicked, levelled and placed at their scene's `voAt`; the music bed fades in and out and ducks
 smoothly under the voice; each cursor click gets a short synthesised tick; a soft limiter catches peaks.
 Every clip edge gets a few milliseconds of fade so nothing pops.
 
@@ -69,6 +69,40 @@ def declick(a: np.ndarray) -> np.ndarray:
     return a * g[:, None]
 
 
+def tighten(a: np.ndarray, max_pause: float = 0.32, lead: float = 0.03) -> np.ndarray:
+    """Trims leading/trailing silence and shortens pauses inside a line to `max_pause` seconds.
+
+    Silence = 40 ms level more than 32 dB below the line's loudness. Cuts land in the middle of a pause
+    with a 10 ms crossfade, so the joins are inaudible.
+    """
+    m = a.mean(1)
+    w = int(SR * 0.04)
+    env = np.sqrt(np.convolve(m ** 2, np.ones(w) / w, 'same')) + 1e-9
+    loud = 20 * np.log10(env / np.sqrt((m ** 2).mean())) > -32
+    idx = np.where(loud)[0]
+    if not len(idx):
+        return a
+    a = a[max(0, idx[0] - int(SR * lead)): idx[-1] + int(SR * 0.08)]
+    loud = loud[max(0, idx[0] - int(SR * lead)): idx[-1] + int(SR * 0.08)]
+    keep = int(SR * max_pause)
+    xf = int(SR * 0.01)
+    out, i, n = [], 0, len(a)
+    edges = np.flatnonzero(np.diff(loud.astype(int)))            # loud→quiet and quiet→loud boundaries
+    quiet = [(s + 1, e + 1) for s, e in zip(edges[:-1], edges[1:]) if not loud[s + 1]]
+    for qs, qe in quiet:
+        if qe - qs <= keep + 2 * xf:
+            continue
+        cut_a, cut_b = qs + keep // 2, qe - keep // 2               # keep half the allowed pause on each side
+        out.append(a[i:cut_a])
+        i = cut_b - xf
+        ramp = np.linspace(0, 1, xf)[:, None]
+        out[-1] = out[-1].copy()
+        out[-1][-xf:] = out[-1][-xf:] * (1 - ramp) + a[i:i + xf] * ramp
+        i += xf
+    out.append(a[i:n])
+    return np.concatenate(out)
+
+
 def db(x: float) -> float:
     return 10 ** (x / 20)
 
@@ -111,7 +145,7 @@ def main() -> None:
         if not f.exists():
             print(f'missing {f.relative_to(root)}')
             continue
-        v = load(f)
+        v = tighten(load(f))
         rms = np.sqrt((v ** 2).mean())
         v = edge_fade(declick(v) * db(VOICE_RMS_DB) / rms)
         a = int((starts[i] + s['voAt']) / fps * SR)
